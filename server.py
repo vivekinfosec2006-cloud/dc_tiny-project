@@ -1140,7 +1140,12 @@ class DashboardHandler(BaseHTTPRequestHandler):
         path = parsed.path
 
         if path == "/" or path == "/index.html":
-            body = DASHBOARD_HTML.encode("utf-8")
+            index_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "index.html")
+            if os.path.isfile(index_path):
+                with open(index_path, "rb") as f:
+                    body = f.read()
+            else:
+                body = DASHBOARD_HTML.encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
