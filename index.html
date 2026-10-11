@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Distributed File Sharing System — Dashboard</title>
+  <title>Distributed File Sharing System — Live Dashboard</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -64,6 +64,8 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
     }
 
     .brand {
@@ -73,8 +75,8 @@
     }
 
     .brand-icon {
-      width: 40px;
-      height: 40px;
+      width: 42px;
+      height: 42px;
       border-radius: var(--radius-md);
       background: linear-gradient(135deg, #0284c7, #6366f1);
       display: flex;
@@ -106,6 +108,7 @@
       display: flex;
       align-items: center;
       gap: 12px;
+      flex-wrap: wrap;
     }
 
     .status-badge {
@@ -168,18 +171,24 @@
       gap: 1.8rem;
     }
 
-    /* Cloud Mode Notice (Only shown if opened on static hosts) */
-    .cloud-notice {
-      display: none;
-      background: rgba(56, 189, 248, 0.1);
+    /* Active Mode Banner */
+    .mode-banner {
+      background: rgba(56, 189, 248, 0.08);
       border: 1px solid var(--border-glow);
       border-radius: var(--radius-md);
       padding: 12px 18px;
       font-size: 0.85rem;
+      display: flex;
       justify-content: space-between;
       align-items: center;
       gap: 12px;
       flex-wrap: wrap;
+    }
+
+    .mode-banner-text {
+      display: flex;
+      align-items: center;
+      gap: 10px;
     }
 
     /* Metrics Grid */
@@ -297,11 +306,11 @@
       transform: translateY(-1px);
     }
 
-    /* Upload Progress Overlay */
+    /* Upload Progress Box */
     .progress-box {
       margin-top: 16px;
       display: none;
-      background: rgba(6, 9, 19, 0.9);
+      background: rgba(6, 9, 19, 0.95);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-md);
       padding: 12px 18px;
@@ -366,7 +375,7 @@
       box-shadow: 0 0 14px var(--accent-cyan-glow);
     }
 
-    /* Files Table */
+    /* Table */
     .table-card {
       background: var(--bg-card);
       backdrop-filter: blur(12px);
@@ -569,20 +578,24 @@
     <div class="header-actions">
       <div class="status-badge" id="serverStatusBadge">
         <span class="status-dot"></span>
-        <span id="serverStatusText">Socket Server Online (:8888)</span>
+        <span id="serverStatusText">Connecting...</span>
       </div>
-      <button class="btn-copy" onclick="copyLanUrl()">
-        📋 Copy LAN URL
+      <button class="btn-copy" onclick="copyCurrentUrl()">
+        📋 Copy Shareable Link
       </button>
     </div>
   </header>
 
   <main>
-    <div class="cloud-notice" id="cloudNotice">
-      <div>
-        <strong>🌐 Static Cloud Preview Mode:</strong> You are viewing this dashboard on GitHub Pages. To connect to your local PC socket node, run <code>python server.py</code> on your computer.
+    <!-- Dynamic Mode Banner -->
+    <div class="mode-banner" id="modeBanner">
+      <div class="mode-banner-text">
+        <span id="modeIcon">⚡</span>
+        <span id="modeDescription">Detecting active connection mode...</span>
       </div>
-      <button class="btn-copy" onclick="promptBackendUrl()">⚙️ Set Custom Node URL</button>
+      <button class="btn-copy" id="modeActionBtn" onclick="promptBackendUrl()" style="display: none;">
+        ⚙️ Connect Local Node
+      </button>
     </div>
 
     <!-- Metrics Grid -->
@@ -611,8 +624,8 @@
       <div class="metric-card">
         <div class="metric-icon icon-lan">🌐</div>
         <div class="metric-info">
-          <h3>Host LAN IP</h3>
-          <p id="metricLanIp">127.0.0.1</p>
+          <h3>Active Node Mode</h3>
+          <p id="metricLanIp" style="font-size: 1.1rem; margin-top: 4px;">Online</p>
         </div>
       </div>
     </div>
@@ -660,7 +673,8 @@
             <tr>
               <td colspan="5" class="empty-state">
                 <div style="font-size: 32px; margin-bottom: 8px;">📂</div>
-                <strong>Loading files from server...</strong>
+                <strong>No files shared yet</strong>
+                <p>Upload a file using drag & drop above to see real-time SHA-256 hashing in action.</p>
               </td>
             </tr>
           </tbody>
@@ -672,7 +686,7 @@
     <div class="cli-card">
       <div class="cli-text">
         <h4>Terminal Socket Client (client.py)</h4>
-        <p>You can also access this server from the terminal or another computer over Wi-Fi:</p>
+        <p>You can also connect to your server from the terminal or another computer over Wi-Fi:</p>
       </div>
       <div class="cli-code" id="cliCommand" onclick="copyCliCommand()" style="cursor: pointer;" title="Click to copy">
         python client.py 127.0.0.1
@@ -683,21 +697,36 @@
   <div id="toast">✅ Message</div>
 
   <script>
+    // =========================================================================
+    // STATE & INDEXEDDB PERSISTENCE ENGINE (Real-Time in-browser storage)
+    // =========================================================================
+    const DB_NAME = 'DistributedFileSharingDB';
+    const DB_VERSION = 1;
+    const STORE_NAME = 'files';
+
+    let isPythonBackend = false;
+    let apiBase = "";
     let filesData = [];
     let hostIp = "127.0.0.1";
-    let apiBase = "";
 
     function showToast(msg) {
       const toast = document.getElementById('toast');
       toast.textContent = msg;
       toast.style.display = 'flex';
-      setTimeout(() => { toast.style.display = 'none'; }, 3000);
+      setTimeout(() => { toast.style.display = 'none'; }, 3200);
     }
 
-    function copyLanUrl() {
-      const url = apiBase || `http://${hostIp}:5000`;
-      navigator.clipboard.writeText(url).then(() => {
-        showToast(`📋 Copied Link: ${url}`);
+    function formatBytes(bytes) {
+      if (bytes === 0) return '0 B';
+      const k = 1024;
+      const sizes = ['B', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    function copyCurrentUrl() {
+      navigator.clipboard.writeText(window.location.href).then(() => {
+        showToast(`📋 Copied Link: ${window.location.href}`);
       });
     }
 
@@ -714,59 +743,163 @@
       });
     }
 
-    function promptBackendUrl() {
-      const url = prompt("Enter your local backend or tunnel URL (e.g., https://xxxx.a.pinggy.link):", apiBase);
-      if (url !== null) {
-        apiBase = url.replace(/\\/$/, "");
-        localStorage.setItem("custom_api_base", apiBase);
-        loadFiles();
-        loadStats();
-      }
+    // Native Web Cryptography API for bit-for-bit SHA-256 calculation
+    async function computeSha256(blob) {
+      const arrayBuffer = await blob.arrayBuffer();
+      const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
     }
 
-    // Auto-detect if running on static GitHub Pages
-    if (window.location.hostname.includes("github.io") || window.location.protocol === "file:") {
-      document.getElementById('cloudNotice').style.display = 'flex';
-      const saved = localStorage.getItem("custom_api_base");
-      if (saved) apiBase = saved;
+    // IndexedDB Implementation for Persistent Offline/Cloud Storage
+    function openIDB() {
+      return new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME, DB_VERSION);
+        req.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains(STORE_NAME)) {
+            db.createObjectStore(STORE_NAME, { keyPath: 'name' });
+          }
+        };
+        req.onsuccess = (e) => resolve(e.target.result);
+        req.onerror = (e) => reject(e.target.error);
+      });
     }
 
-    async function loadStats() {
+    async function idbSaveFile(fileRecord) {
+      const db = await openIDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        tx.objectStore(STORE_NAME).put(fileRecord);
+        tx.oncomplete = () => resolve();
+        tx.onerror = (e) => reject(e.target.error);
+      });
+    }
+
+    async function idbGetFiles() {
+      const db = await openIDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const req = tx.objectStore(STORE_NAME).getAll();
+        req.onsuccess = () => resolve(req.result || []);
+        req.onerror = (e) => reject(e.target.error);
+      });
+    }
+
+    async function idbDeleteFile(name) {
+      const db = await openIDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        tx.objectStore(STORE_NAME).delete(name);
+        tx.oncomplete = () => resolve();
+        tx.onerror = (e) => reject(e.target.error);
+      });
+    }
+
+    // =========================================================================
+    // INITIALIZATION & MODE DETECTION
+    // =========================================================================
+    async function initSystem() {
+      // Check if Python server.py backend is responding on current host or saved URL
+      const savedUrl = localStorage.getItem("custom_backend_url");
+      const testUrl = savedUrl || apiBase;
+
       try {
-        const res = await fetch(`${apiBase}/api/stats`);
-        if (!res.ok) throw new Error("Stats not available");
-        const data = await res.json();
-        hostIp = data.server_ip || '127.0.0.1';
-        document.getElementById('metricFileCount').textContent = data.file_count;
-        document.getElementById('metricTotalSize').textContent = data.total_size_formatted;
-        document.getElementById('metricSocketPort').textContent = data.socket_port;
-        document.getElementById('metricLanIp').textContent = hostIp;
-        document.getElementById('cliCommand').textContent = `python client.py ${hostIp}`;
+        const res = await fetch(`${testUrl}/api/stats`, { signal: AbortSignal.timeout(1200) });
+        if (res.ok) {
+          const data = await res.json();
+          isPythonBackend = true;
+          apiBase = testUrl;
+          hostIp = data.server_ip || '127.0.0.1';
+
+          document.getElementById('serverStatusText').textContent = "TCP Server Online (:8888)";
+          document.getElementById('modeIcon').textContent = "🚀";
+          document.getElementById('modeDescription').innerHTML = 
+            `<strong>Live Python Backend Connected:</strong> Serving files directly from local storage. Socket core is active on port <code>${data.socket_port}</code>.`;
+          document.getElementById('metricLanIp').textContent = `${hostIp}:5000`;
+          document.getElementById('cliCommand').textContent = `python client.py ${hostIp}`;
+          loadBackendFiles();
+          return;
+        }
       } catch (err) {
-        // Fallback for static demo
-        document.getElementById('serverStatusText').textContent = "Static Preview Mode";
+        // Backend not available (e.g. running statically on GitHub Pages)
+      }
+
+      // Fallback: Real-time Client-side Web Node (IndexedDB + WebCrypto)
+      isPythonBackend = false;
+      document.getElementById('serverStatusText').textContent = "Live Browser Node (Active)";
+      document.getElementById('modeIcon').textContent = "🌐";
+      document.getElementById('modeDescription').innerHTML = 
+        `<strong>Real-Time Cloud Mode:</strong> Running with browser-level persistent storage & native SHA-256 hashing. All uploads and downloads work live!`;
+      document.getElementById('modeActionBtn').style.display = "inline-flex";
+      document.getElementById('metricLanIp').textContent = "Browser Node";
+      document.getElementById('metricSocketPort').textContent = "Client P2P";
+      loadBrowserFiles();
+    }
+
+    function promptBackendUrl() {
+      const current = localStorage.getItem("custom_backend_url") || "";
+      const url = prompt("Enter your local server or tunnel URL (e.g. http://192.168.1.15:5000 or tunnel link):", current);
+      if (url !== null) {
+        if (url.trim() === "") {
+          localStorage.removeItem("custom_backend_url");
+        } else {
+          localStorage.setItem("custom_backend_url", url.trim().replace(/\\/$/, ""));
+        }
+        window.location.reload();
       }
     }
 
-    async function loadFiles() {
+    // =========================================================================
+    // FILE MANAGEMENT: BACKEND MODE VS BROWSER MODE
+    // =========================================================================
+    async function loadBackendFiles() {
       try {
         const res = await fetch(`${apiBase}/api/files`);
-        if (!res.ok) throw new Error("Files not available");
         filesData = await res.json();
         renderFiles(filesData);
-        loadStats();
-      } catch (err) {
-        // Static GitHub Pages demo sample files
-        if (window.location.hostname.includes("github.io")) {
-          filesData = [
-            { name: "Project_Synopsis.pdf", ext: "pdf", size_formatted: "1.2 MB", sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", modified: "11 Oct 2026, 17:00" },
-            { name: "Distributed_Sockets.py", ext: "py", size_formatted: "8.7 KB", sha256: "8f434346648f6b96df89dda901c5176b10a6d83961dd3c1ac88b59b2dc327aa4", modified: "11 Oct 2026, 16:45" },
-            { name: "Network_Architecture.png", ext: "png", size_formatted: "450 KB", sha256: "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad", modified: "11 Oct 2026, 15:30" }
-          ];
-          renderFiles(filesData);
-          document.getElementById('metricFileCount').textContent = filesData.length;
-          document.getElementById('metricTotalSize').textContent = "1.6 MB";
+
+        const statsRes = await fetch(`${apiBase}/api/stats`);
+        const stats = await statsRes.json();
+        document.getElementById('metricFileCount').textContent = stats.file_count;
+        document.getElementById('metricTotalSize').textContent = stats.total_size_formatted;
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    async function loadBrowserFiles() {
+      try {
+        let stored = await idbGetFiles();
+        
+        // If first visit, seed sample MCA project file so dashboard is never empty
+        if (stored.length === 0) {
+          const sampleBlob = new Blob([
+            "DISTRIBUTED FILE SHARING SYSTEM\\nMaster of Computer Applications (MCA) — 1st Semester\\nAuthor: Vivek\\n\\nArchitecture: Dual TCP Socket & Glassmorphic Web Dashboard\\nData Integrity: Bit-for-bit SHA-256 verification"
+          ], { type: "text/plain" });
+
+          const sampleHash = await computeSha256(sampleBlob);
+          const sample = {
+            name: "MCA_Project_Overview.txt",
+            size: sampleBlob.size,
+            size_formatted: formatBytes(sampleBlob.size),
+            ext: "txt",
+            modified: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+            sha256: sampleHash,
+            blob: sampleBlob
+          };
+          await idbSaveFile(sample);
+          stored = [sample];
         }
+
+        filesData = stored;
+        renderFiles(filesData);
+
+        const totalBytes = filesData.reduce((acc, f) => acc + (f.size || 0), 0);
+        document.getElementById('metricFileCount').textContent = filesData.length;
+        document.getElementById('metricTotalSize').textContent = formatBytes(totalBytes);
+      } catch (e) {
+        console.error(e);
       }
     }
 
@@ -778,7 +911,7 @@
             <td colspan="5" class="empty-state">
               <div style="font-size: 32px; margin-bottom: 8px;">📂</div>
               <strong>No files shared yet</strong>
-              <p>Upload a file using drag & drop above, or via terminal socket client.</p>
+              <p>Drag and drop any file above to upload and compute real-time SHA-256 hash.</p>
             </td>
           </tr>`;
         return;
@@ -788,7 +921,7 @@
         <tr>
           <td>
             <div class="file-name-cell">
-              <span class="file-badge">${f.ext}</span>
+              <span class="file-badge">${f.ext || 'FILE'}</span>
               <span>${f.name}</span>
             </div>
           </td>
@@ -801,10 +934,10 @@
           <td style="color: var(--text-dim);">${f.modified}</td>
           <td>
             <div class="actions-cell">
-              <a href="${apiBase}/download/${encodeURIComponent(f.name)}" class="btn-action btn-dl" download>
+              <button class="btn-action btn-dl" onclick="handleDownload('${encodeURIComponent(f.name)}')">
                 ⬇ Download
-              </a>
-              <button class="btn-action btn-del" onclick="deleteFile('${encodeURIComponent(f.name)}')">
+              </button>
+              <button class="btn-action btn-del" onclick="handleDelete('${encodeURIComponent(f.name)}')">
                 ✕ Delete
               </button>
             </div>
@@ -819,37 +952,69 @@
       renderFiles(filtered);
     }
 
-    async function deleteFile(fname) {
-      const decoded = decodeURIComponent(fname);
-      if (!confirm(`Are you sure you want to delete '${decoded}'?`)) return;
-
-      try {
-        const res = await fetch(`${apiBase}/api/delete?file=${encodeURIComponent(decoded)}`, { method: 'POST' });
-        const data = await res.json();
-        if (data.status === 'OK') {
-          showToast(`🗑️ File '${decoded}' deleted.`);
-          loadFiles();
-        } else {
-          alert('Delete failed: ' + data.message);
+    // Download handler (Handles both Python backend and Browser IndexedDB)
+    async function handleDownload(encodedName) {
+      const fname = decodeURIComponent(encodedName);
+      if (isPythonBackend) {
+        window.location.href = `${apiBase}/download/${encodeURIComponent(fname)}`;
+      } else {
+        const file = filesData.find(f => f.name === fname);
+        if (!file || !file.blob) {
+          showToast("File data not found in browser storage");
+          return;
         }
-      } catch (err) {
-        alert('Delete error: ' + err);
+        const url = URL.createObjectURL(file.blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fname;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1500);
+        showToast(`⬇ Downloaded: ${fname}`);
       }
     }
 
-    // Drag and Drop Handling
+    // Delete handler
+    async function handleDelete(encodedName) {
+      const fname = decodeURIComponent(encodedName);
+      if (!confirm(`Are you sure you want to delete '${fname}'?`)) return;
+
+      if (isPythonBackend) {
+        try {
+          const res = await fetch(`${apiBase}/api/delete?file=${encodeURIComponent(fname)}`, { method: 'POST' });
+          const data = await res.json();
+          if (data.status === 'OK') {
+            showToast(`🗑️ Deleted '${fname}'`);
+            loadBackendFiles();
+          } else {
+            alert(data.message);
+          }
+        } catch (e) {
+          alert('Delete error: ' + e);
+        }
+      } else {
+        await idbDeleteFile(fname);
+        showToast(`🗑️ Deleted '${fname}'`);
+        loadBrowserFiles();
+      }
+    }
+
+    // =========================================================================
+    // UPLOAD LOGIC (REAL-TIME SHA-256 HASHING & DUAL STORAGE)
+    // =========================================================================
     const dropZone = document.getElementById('dropZone');
 
-    ['dragenter', 'dragover'].forEach(eventName => {
-      dropZone.addEventListener(eventName, (e) => {
+    ['dragenter', 'dragover'].forEach(name => {
+      dropZone.addEventListener(name, (e) => {
         e.preventDefault();
         e.stopPropagation();
         dropZone.classList.add('dragover');
       });
     });
 
-    ['dragleave', 'drop'].forEach(eventName => {
-      dropZone.addEventListener(eventName, (e) => {
+    ['dragleave', 'drop'].forEach(name => {
+      dropZone.addEventListener(name, (e) => {
         e.preventDefault();
         e.stopPropagation();
         dropZone.classList.remove('dragover');
@@ -857,8 +1022,7 @@
     });
 
     dropZone.addEventListener('drop', (e) => {
-      const dt = e.dataTransfer;
-      const files = dt.files;
+      const files = e.dataTransfer.files;
       if (files.length > 0) uploadFiles(files);
     });
 
@@ -881,44 +1045,68 @@
         pPercent.textContent = '0%';
         pBar.style.width = '0%';
 
-        await new Promise((resolve, reject) => {
-          const xhr = new XMLHttpRequest();
-          xhr.open('POST', `${apiBase}/api/upload`);
-          xhr.setRequestHeader('X-Filename', encodeURIComponent(file.name));
+        if (isPythonBackend) {
+          // Stream upload to local Python backend
+          await new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', `${apiBase}/api/upload`);
+            xhr.setRequestHeader('X-Filename', encodeURIComponent(file.name));
 
-          xhr.upload.onprogress = (e) => {
-            if (e.lengthComputable) {
-              const percent = Math.round((e.loaded / e.total) * 100);
-              pPercent.textContent = percent + '%';
-              pBar.style.width = percent + '%';
-            }
+            xhr.upload.onprogress = (e) => {
+              if (e.lengthComputable) {
+                const percent = Math.round((e.loaded / e.total) * 100);
+                pPercent.textContent = percent + '%';
+                pBar.style.width = percent + '%';
+              }
+            };
+            xhr.onload = () => resolve();
+            xhr.onerror = () => reject('Upload failed');
+            xhr.send(file);
+          });
+        } else {
+          // Real-time Browser Upload (WebCrypto SHA-256 + IndexedDB)
+          pPercent.textContent = '50%';
+          pBar.style.width = '50%';
+          pName.textContent = `Computing SHA-256: ${file.name}...`;
+
+          const sha = await computeSha256(file);
+          pPercent.textContent = '100%';
+          pBar.style.width = '100%';
+
+          const ext = file.name.split('.').pop().toLowerCase() || 'file';
+          const modified = new Date().toLocaleDateString('en-GB', {
+            day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+          });
+
+          const fileRecord = {
+            name: file.name,
+            size: file.size,
+            size_formatted: formatBytes(file.size),
+            ext: ext,
+            modified: modified,
+            sha256: sha,
+            blob: file
           };
 
-          xhr.onload = () => {
-            if (xhr.status === 200) {
-              resolve();
-            } else {
-              // Static preview fallback
-              setTimeout(resolve, 600);
-            }
-          };
-
-          xhr.onerror = () => {
-            // If offline / static demo
-            setTimeout(resolve, 600);
-          };
-          xhr.send(file);
-        });
+          await idbSaveFile(fileRecord);
+        }
       }
 
       showToast(`✅ Successfully uploaded ${files.length} file(s)!`);
-      setTimeout(() => { pBox.style.display = 'none'; }, 1500);
-      loadFiles();
+      setTimeout(() => { pBox.style.display = 'none'; }, 1200);
+
+      if (isPythonBackend) {
+        loadBackendFiles();
+      } else {
+        loadBrowserFiles();
+      }
     }
 
-    // Initialize and Auto-refresh
-    loadFiles();
-    setInterval(loadFiles, 4000);
+    // Auto-refresh every 4 seconds if backend is connected
+    initSystem();
+    setInterval(() => {
+      if (isPythonBackend) loadBackendFiles();
+    }, 4000);
   </script>
 </body>
 </html>
