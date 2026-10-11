@@ -1,0 +1,18 @@
+# ==============================================================================
+# SENSITIVE DATA PROTECTION
+# Do NOT commit uploaded files or downloads to public git repo
+# ==============================================================================
+storage/
+downloads/
+
+# Python Virtual Environments & Bytecode
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# OS generated files
+.DS_Store
+Thumbs.db
