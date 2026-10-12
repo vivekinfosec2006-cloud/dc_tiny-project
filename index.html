@@ -542,6 +542,35 @@
       background: rgba(6, 182, 212, 0.1);
     }
 
+    .badge-source {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: var(--radius-sm);
+      letter-spacing: 0.02em;
+    }
+
+    .badge-source-local {
+      background: rgba(99, 102, 241, 0.14);
+      color: #a5b4fc;
+      border: 1px solid rgba(99, 102, 241, 0.3);
+    }
+
+    .badge-source-peer {
+      background: rgba(6, 182, 212, 0.14);
+      color: #38bdf8;
+      border: 1px solid rgba(6, 182, 212, 0.35);
+    }
+
+    .badge-source-server {
+      background: rgba(16, 185, 129, 0.14);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
     .btn-table-action {
       padding: 6px 13px;
       border-radius: var(--radius-sm);
@@ -565,6 +594,18 @@
     .btn-dl-act:hover {
       background: var(--accent-emerald);
       color: #080c14;
+    }
+
+    .btn-p2p-dl {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.22), rgba(6, 182, 212, 0.22));
+      color: #38bdf8;
+      border: 1px solid rgba(6, 182, 212, 0.45);
+    }
+
+    .btn-p2p-dl:hover {
+      background: linear-gradient(135deg, #6366f1, #06b6d4);
+      color: #080c14;
+      box-shadow: 0 0 15px rgba(6, 182, 212, 0.45);
     }
 
     .btn-del-act {
@@ -680,13 +721,17 @@
     <!-- Real-Time P2P Mesh Ribbon -->
     <div class="mesh-ribbon">
       <div class="mesh-info">
-        <span class="mesh-label">🌐 WebRTC P2P Room:</span>
+        <span class="mesh-label">🌐 WebRTC Room:</span>
         <span class="mesh-tag" id="currentRoomTag">vivek-mca</span>
-        <span class="mesh-peers" id="peersCountBadge">🟢 Listening for peers...</span>
+        <span class="mesh-label" style="margin-left: 4px;">Node ID:</span>
+        <span class="mesh-tag" id="myNodeIdDisplay" onclick="copyNodeId()" title="Click to copy your Node ID" style="cursor: pointer; background: rgba(6, 182, 212, 0.14); color: #38bdf8; border-color: rgba(6, 182, 212, 0.35);">connecting...</span>
+        <span class="mesh-peers" id="peersCountBadge">🟡 Initializing Mesh...</span>
       </div>
       <div class="mesh-controls">
+        <button class="btn-action-ghost" onclick="addSampleTestDocument()" title="Add instant demo file to test peer transfer without browsing files">📄 Add Test File</button>
+        <button class="btn-action-primary" onclick="copyShareableLink()">🔗 Copy Room Link</button>
         <input type="text" class="input-mesh" id="roomInput" placeholder="Room ID..." value="vivek-mca">
-        <button class="btn-action-ghost" onclick="switchRoom()">Join Room</button>
+        <button class="btn-action-ghost" onclick="switchRoom()">Join</button>
       </div>
     </div>
 
@@ -757,9 +802,9 @@
           <thead>
             <tr>
               <th>File Name</th>
+              <th>Source / Node</th>
               <th>Size</th>
               <th>SHA-256 Checksum</th>
-              <th>Modified Date</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -767,8 +812,8 @@
             <tr>
               <td colspan="5" class="empty-state">
                 <div style="font-size: 34px; margin-bottom: 8px;">📂</div>
-                <strong>No files shared yet in this node</strong>
-                <p>Drag and drop a file above or click Browse Files to test live!</p>
+                <strong>No files shared in mesh yet</strong>
+                <p>Drag and drop a file above or click "Add Test File" to test live in real time!</p>
               </td>
             </tr>
           </tbody>
@@ -798,17 +843,24 @@
     // =========================================================================
     const DB_NAME = "AeroShare_MeshDB";
     const STORE_NAME = "mesh_files";
+    const CHUNK_SIZE = 64 * 1024; // 64 KB WebRTC streaming chunk
+
     let db = null;
     let localFiles = [];
+    let serverFiles = [];
+    let peerCatalogs = {};      // peerId -> array of file objects
+    let activeConnections = {}; // peerId -> DataConnection
+    let incomingTransfers = {}; // transferId -> transfer tracking object
+
     let currentRoom = "vivek-mca";
     let peer = null;
-    let activeConnections = [];
+    let isHub = false;
 
     function showToast(msg) {
       const toast = document.getElementById('toast');
       toast.textContent = msg;
       toast.style.display = 'flex';
-      setTimeout(() => { toast.style.display = 'none'; }, 3200);
+      setTimeout(() => { toast.style.display = 'none'; }, 3400);
     }
 
     function initDB() {
@@ -842,6 +894,15 @@
         const tx = db.transaction(STORE_NAME, "readonly");
         const req = tx.objectStore(STORE_NAME).getAll();
         req.onsuccess = () => resolve(req.result || []);
+        req.onerror = (e) => reject(e);
+      });
+    }
+
+    function dbGetFile(name) {
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, "readonly");
+        const req = tx.objectStore(STORE_NAME).get(name);
+        req.onsuccess = () => resolve(req.result || null);
         req.onerror = (e) => reject(e);
       });
     }
@@ -885,6 +946,13 @@
       });
     }
 
+    function copyNodeId() {
+      if (!peer || !peer.id) return;
+      navigator.clipboard.writeText(peer.id).then(() => {
+        showToast(`📋 Copied your Node ID: ${peer.id}`);
+      });
+    }
+
     function copyCliCommand() {
       navigator.clipboard.writeText('python client.py 127.0.0.1').then(() => {
         showToast('📋 Copied terminal command: python client.py 127.0.0.1');
@@ -894,17 +962,21 @@
     function copyShareableLink() {
       const url = `${window.location.origin}${window.location.pathname}#room=${encodeURIComponent(currentRoom)}`;
       navigator.clipboard.writeText(url).then(() => {
-        showToast('🔗 Copied P2P Room Link! Open this on your mobile or another PC to share files live.');
+        showToast('🔗 Copied P2P Room Link! Open this on your mobile or another PC to test live.');
       });
     }
 
     // =========================================================================
-    // 2. WEBRTC P2P MESH ENGINE (Cross-Device Real-Time Streaming)
+    // 2. WEBRTC P2P MESH ENGINE (Automatic Hub-Member Negotiation)
     // =========================================================================
     function getRoomFromUrl() {
       const hash = window.location.hash;
       const match = hash.match(/room=([^&]+)/);
       return match ? decodeURIComponent(match[1]) : "vivek-mca";
+    }
+
+    function cleanSlug(str) {
+      return (str || "vivek-mca").toLowerCase().replace(/[^a-z0-9_-]/g, "") || "vivek-mca";
     }
 
     function switchRoom() {
@@ -916,232 +988,648 @@
       initP2P();
     }
 
-    function initP2P() {
-      currentRoom = getRoomFromUrl();
-      document.getElementById('currentRoomTag').textContent = currentRoom;
-      document.getElementById('roomInput').value = currentRoom;
-
-      if (peer) {
-        try { peer.destroy(); } catch (e) {}
-      }
-      activeConnections = [];
-      updatePeersBadge();
-
-      const nodeId = `${currentRoom}-${Math.random().toString(36).substring(2, 7)}`;
-
-      try {
-        peer = new Peer(nodeId, {
-          debug: 1,
-          config: {
-            iceServers: [
-              { urls: 'stun:stun.l.google.com:19302' },
-              { urls: 'stun:global.stun.twilio.com:3478' }
-            ]
-          }
-        });
-
-        peer.on('open', (id) => {
-          document.getElementById('nodeStatusLabel').textContent = `Mesh Active (${id.slice(-5)})`;
-          connectToRoomHost();
-        });
-
-        peer.on('connection', (conn) => {
-          setupConn(conn);
-        });
-
-        peer.on('error', (err) => {
-          console.warn('[P2P]', err);
-        });
-      } catch (err) {
-        console.error('PeerJS init failed:', err);
-      }
+    function getLocalCatalogPayload() {
+      return localFiles.map(f => ({
+        name: f.name,
+        size: f.size,
+        size_formatted: f.size_formatted,
+        ext: f.ext,
+        mimeType: f.mimeType,
+        sha256: f.sha256,
+        modified: f.modified
+      }));
     }
 
-    function connectToRoomHost() {
-      const hostId = `${currentRoom}-host`;
-      if (peer.id !== hostId) {
-        const conn = peer.connect(hostId, { reliable: true });
-        setupConn(conn);
-      }
+    function broadcast(msg) {
+      Object.values(activeConnections).forEach(conn => {
+        try {
+          if (conn && conn.open) conn.send(msg);
+        } catch (e) {
+          console.warn('Broadcast send error:', e);
+        }
+      });
     }
 
-    function setupConn(conn) {
-      conn.on('open', () => {
-        if (!activeConnections.some(c => c.peer === conn.peer)) {
-          activeConnections.push(conn);
-        }
-        updatePeersBadge();
-        showToast(`🟢 Connected with peer node: ${conn.peer.slice(-5)}`);
-
-        // Send catalog to peer
-        conn.send({
-          type: 'CATALOG_SYNC',
-          files: localFiles.map(f => ({
-            name: f.name,
-            size: f.size,
-            size_formatted: f.size_formatted,
-            ext: f.ext,
-            sha256: f.sha256,
-            modified: f.modified
-          }))
-        });
-      });
-
-      conn.on('data', async (msg) => {
-        if (!msg) return;
-
-        if (msg.type === 'P2P_FILE_TRANSFER') {
-          showToast(`⚡ Streaming '${msg.name}' from peer...`);
-          const arrayBuffer = msg.buffer;
-          const hash = await calculateSHA256(arrayBuffer);
-
-          const record = {
-            name: msg.name,
-            size: msg.size,
-            size_formatted: formatBytes(msg.size),
-            ext: msg.ext,
-            sha256: hash,
-            modified: msg.modified || new Date().toLocaleString(),
-            blob: new Blob([arrayBuffer], { type: msg.mimeType || 'application/octet-stream' })
-          };
-
-          await dbSave(record);
-          await refreshVault();
-          showToast(`✅ Bit-for-bit SHA-256 verified '${msg.name}'!`);
-        } else if (msg.type === 'P2P_FILE_DELETE') {
-          await dbDelete(msg.name);
-          await refreshVault();
-          showToast(`🗑️ Peer removed file: '${msg.name}'`);
-        }
-      });
-
-      conn.on('close', () => {
-        activeConnections = activeConnections.filter(c => c.peer !== conn.peer);
-        updatePeersBadge();
+    function broadcastCatalog() {
+      broadcast({
+        type: 'CATALOG_SYNC',
+        files: getLocalCatalogPayload()
       });
     }
 
     function updatePeersBadge() {
       const badge = document.getElementById('peersCountBadge');
-      if (activeConnections.length > 0) {
-        badge.textContent = `🟢 ${activeConnections.length} Active Peer Node(s) in Mesh`;
+      const count = Object.keys(activeConnections).length;
+      if (count > 0) {
+        badge.textContent = `🟢 ${count} Peer(s) Connected in Mesh`;
         badge.style.color = 'var(--accent-emerald)';
       } else {
-        badge.textContent = `🟡 Room Listening (Open link on another device to test live)`;
+        if (isHub) {
+          badge.textContent = `🟡 Room Hub Active — Open link on another device to share live`;
+        } else {
+          badge.textContent = `🟡 Connecting to mesh...`;
+        }
         badge.style.color = 'var(--accent-amber)';
       }
     }
 
-    function broadcast(message) {
-      activeConnections.forEach(conn => {
-        try {
-          if (conn.open) conn.send(message);
-        } catch (e) {}
+    function initP2P() {
+      currentRoom = getRoomFromUrl();
+      document.getElementById('currentRoomTag').textContent = currentRoom;
+      document.getElementById('roomInput').value = currentRoom;
+      document.getElementById('myNodeIdDisplay').textContent = "connecting...";
+
+      if (peer) {
+        try { peer.destroy(); } catch (e) {}
+        peer = null;
+      }
+      activeConnections = {};
+      peerCatalogs = {};
+      updatePeersBadge();
+      renderVaultTable();
+
+      const roomSlug = cleanSlug(currentRoom);
+      const hubId = `aeroshare-${roomSlug}-hub`;
+
+      // Step 1: Try to claim Room Hub
+      startHubPeer(hubId, roomSlug);
+    }
+
+    function startHubPeer(hubId, roomSlug) {
+      try {
+        peer = new Peer(hubId, {
+          debug: 1,
+          config: {
+            iceServers: [
+              { urls: 'stun:stun.l.google.com:19302' },
+              { urls: 'stun:stun1.l.google.com:19302' }
+            ]
+          }
+        });
+
+        peer.on('open', (id) => {
+          isHub = true;
+          document.getElementById('nodeStatusLabel').textContent = `Mesh Hub (Host)`;
+          document.getElementById('myNodeIdDisplay').textContent = id;
+          showToast(`👑 Room Hub Online: '${currentRoom}'`);
+          updatePeersBadge();
+        });
+
+        peer.on('connection', (conn) => {
+          setupConnection(conn);
+        });
+
+        peer.on('error', (err) => {
+          if (err.type === 'unavailable-id') {
+            // Room Hub already online! Fallback to Member
+            startMemberPeer(hubId, roomSlug);
+          } else {
+            console.warn('[Hub Peer Error]', err);
+          }
+        });
+      } catch (e) {
+        startMemberPeer(hubId, roomSlug);
+      }
+    }
+
+    function startMemberPeer(hubId, roomSlug) {
+      const randomHex = Math.random().toString(36).substring(2, 7);
+      const memberId = `aeroshare-${roomSlug}-node-${randomHex}`;
+
+      try {
+        peer = new Peer(memberId, {
+          debug: 1,
+          config: {
+            iceServers: [
+              { urls: 'stun:stun.l.google.com:19302' },
+              { urls: 'stun:stun1.l.google.com:19302' }
+            ]
+          }
+        });
+
+        peer.on('open', (id) => {
+          isHub = false;
+          document.getElementById('nodeStatusLabel').textContent = `Mesh Member (${id.slice(-5)})`;
+          document.getElementById('myNodeIdDisplay').textContent = id;
+          updatePeersBadge();
+
+          // Connect directly to the Hub
+          const conn = peer.connect(hubId, { reliable: true });
+          setupConnection(conn);
+        });
+
+        peer.on('connection', (conn) => {
+          setupConnection(conn);
+        });
+
+        peer.on('error', (err) => {
+          console.warn('[Member Peer Error]', err);
+        });
+      } catch (e) {
+        console.error('Member peer error:', e);
+      }
+    }
+
+    function setupConnection(conn) {
+      conn.on('open', () => {
+        activeConnections[conn.peer] = conn;
+        updatePeersBadge();
+        showToast(`🟢 Connected with peer: ${conn.peer.slice(-7)}`);
+
+        // Exchange Catalog immediately
+        conn.send({
+          type: 'CATALOG_SYNC',
+          files: getLocalCatalogPayload()
+        });
+
+        // If this node is Hub, introduce this new peer to existing peers for full mesh
+        if (isHub) {
+          const otherPeers = Object.keys(activeConnections).filter(p => p !== conn.peer);
+          if (otherPeers.length > 0) {
+            conn.send({
+              type: 'PEER_INTRODUCE',
+              peers: otherPeers
+            });
+          }
+        }
+      });
+
+      conn.on('data', async (msg) => {
+        if (!msg) return;
+
+        if (msg.type === 'CATALOG_SYNC') {
+          peerCatalogs[conn.peer] = msg.files || [];
+          renderVaultTable();
+          updateVaultMetrics();
+          showToast(`📦 Synced ${(msg.files || []).length} file(s) from peer node!`);
+        } 
+        else if (msg.type === 'PEER_INTRODUCE') {
+          (msg.peers || []).forEach(targetPeerId => {
+            if (!activeConnections[targetPeerId] && peer.id !== targetPeerId) {
+              const newConn = peer.connect(targetPeerId, { reliable: true });
+              setupConnection(newConn);
+            }
+          });
+        } 
+        else if (msg.type === 'FILE_REQUEST') {
+          const record = await dbGetFile(msg.name);
+          if (record && record.blob) {
+            showToast(`📤 Streaming '${record.name}' to peer node...`);
+            await streamFileToPeer(conn, record);
+          } else {
+            conn.send({ type: 'FILE_ERROR', name: msg.name, message: 'File buffer not available' });
+          }
+        } 
+        else if (msg.type === 'FILE_TRANSFER_START') {
+          incomingTransfers[msg.transferId] = {
+            name: msg.name,
+            size: msg.size,
+            ext: msg.ext,
+            mimeType: msg.mimeType,
+            sha256: msg.sha256,
+            totalChunks: msg.totalChunks,
+            chunks: new Array(msg.totalChunks),
+            received: 0
+          };
+          updateTransferBox(`Streaming '${msg.name}' from peer...`, 5);
+        } 
+        else if (msg.type === 'FILE_CHUNK') {
+          const t = incomingTransfers[msg.transferId];
+          if (t) {
+            t.chunks[msg.chunkIndex] = msg.data;
+            t.received++;
+            const pct = Math.min(95, Math.round((t.received / t.totalChunks) * 90));
+            const recBytes = formatBytes(t.received * CHUNK_SIZE);
+            updateTransferBox(`Receiving '${t.name}': ${recBytes} / ${formatBytes(t.size)}`, pct);
+          }
+        } 
+        else if (msg.type === 'FILE_TRANSFER_COMPLETE') {
+          const t = incomingTransfers[msg.transferId];
+          if (t) {
+            updateTransferBox(`Verifying SHA-256 for '${t.name}'...`, 95);
+            
+            // Reassemble chunks
+            const fullArray = new Uint8Array(t.size);
+            let offset = 0;
+            for (let i = 0; i < t.totalChunks; i++) {
+              const chunkPart = new Uint8Array(t.chunks[i]);
+              fullArray.set(chunkPart, offset);
+              offset += chunkPart.byteLength;
+            }
+
+            const computedSha = await calculateSHA256(fullArray.buffer);
+
+            if (computedSha === t.sha256) {
+              const blob = new Blob([fullArray.buffer], { type: t.mimeType || 'application/octet-stream' });
+              const savedRecord = {
+                name: t.name,
+                size: t.size,
+                size_formatted: formatBytes(t.size),
+                ext: t.ext,
+                mimeType: t.mimeType,
+                sha256: computedSha,
+                modified: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+                blob: blob
+              };
+
+              await dbSave(savedRecord);
+              delete incomingTransfers[msg.transferId];
+
+              // Trigger browser download!
+              triggerBlobDownload(blob, t.name);
+
+              hideTransferBox();
+              showToast(`✅ Bit-for-bit SHA-256 verified! '${t.name}' downloaded!`);
+              await refreshVault();
+              broadcastCatalog();
+            } else {
+              alert(`Integrity Violation: Checksum mismatch for '${t.name}'!\nExpected: ${t.sha256}\nComputed: ${computedSha}`);
+              hideTransferBox();
+            }
+          }
+        }
+        else if (msg.type === 'FILE_ERROR') {
+          hideTransferBox();
+          alert(`[P2P Error] ${msg.message}`);
+        }
+      });
+
+      conn.on('close', () => {
+        delete activeConnections[conn.peer];
+        delete peerCatalogs[conn.peer];
+        updatePeersBadge();
+        renderVaultTable();
+        updateVaultMetrics();
+      });
+
+      conn.on('error', (err) => {
+        console.warn('Connection error:', err);
       });
     }
 
     // =========================================================================
-    // 3. REPOSITORY VAULT LOGIC
+    // 3. FILE STREAMING ENGINE (64 KB Chunked Streaming over WebRTC)
     // =========================================================================
+    async function streamFileToPeer(conn, record) {
+      const buffer = await record.blob.arrayBuffer();
+      const totalChunks = Math.ceil(buffer.byteLength / CHUNK_SIZE);
+      const transferId = 'tx_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+
+      updateTransferBox(`Streaming '${record.name}' to peer...`, 5);
+
+      // 1. Handshake
+      conn.send({
+        type: 'FILE_TRANSFER_START',
+        transferId: transferId,
+        name: record.name,
+        size: record.size,
+        ext: record.ext,
+        mimeType: record.mimeType,
+        sha256: record.sha256,
+        totalChunks: totalChunks
+      });
+
+      // 2. Stream Chunks
+      for (let i = 0; i < totalChunks; i++) {
+        const start = i * CHUNK_SIZE;
+        const end = Math.min(start + CHUNK_SIZE, buffer.byteLength);
+        const chunkData = buffer.slice(start, end);
+
+        conn.send({
+          type: 'FILE_CHUNK',
+          transferId: transferId,
+          chunkIndex: i,
+          data: chunkData
+        });
+
+        const pct = Math.round(((i + 1) / totalChunks) * 95);
+        updateTransferBox(`Streaming '${record.name}' (${i + 1}/${totalChunks} chunks)`, pct);
+
+        if (i % 6 === 0) {
+          await new Promise(r => setTimeout(r, 6)); // Yield to prevent SCTP backpressure
+        }
+      }
+
+      // 3. Complete
+      conn.send({
+        type: 'FILE_TRANSFER_COMPLETE',
+        transferId: transferId
+      });
+
+      updateTransferBox(`Transfer complete!`, 100);
+      setTimeout(hideTransferBox, 900);
+    }
+
+    function updateTransferBox(text, percent) {
+      const tBox = document.getElementById('transferBox');
+      const tName = document.getElementById('transferFilename');
+      const tPercent = document.getElementById('transferPercent');
+      const tProg = document.getElementById('transferProgress');
+
+      tBox.style.display = 'block';
+      tName.textContent = text;
+      tPercent.textContent = `${percent}%`;
+      tProg.style.width = `${percent}%`;
+    }
+
+    function hideTransferBox() {
+      document.getElementById('transferBox').style.display = 'none';
+    }
+
+    function triggerBlobDownload(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+    }
+
+    // =========================================================================
+    // 4. UNIFIED VAULT REPOSITORY (Merged Local & Remote Peer Files)
+    // =========================================================================
+    async function fetchServerFiles() {
+      try {
+        const res = await fetch('/api/files', { cache: 'no-store' });
+        if (res.ok) {
+          serverFiles = await res.json() || [];
+        }
+      } catch (e) {
+        serverFiles = [];
+      }
+    }
+
     async function refreshVault() {
       localFiles = await dbGetAll();
-      renderVaultTable(localFiles);
+      await fetchServerFiles();
+      renderVaultTable();
       updateVaultMetrics();
     }
 
+    function getUnifiedFileList() {
+      const list = [];
+      const localNames = new Set();
+
+      // 1. Add all local files
+      localFiles.forEach(f => {
+        localNames.add(f.name);
+        list.push({
+          ...f,
+          isLocal: true,
+          isServer: false,
+          sourceLabel: 'Local Vault'
+        });
+      });
+
+      // 2. Add server files if local server.py is running
+      serverFiles.forEach(sf => {
+        if (!localNames.has(sf.name)) {
+          localNames.add(sf.name);
+          list.push({
+            ...sf,
+            isLocal: false,
+            isServer: true,
+            sourceLabel: 'Python Server'
+          });
+        }
+      });
+
+      // 3. Add remote files from connected peers
+      Object.entries(peerCatalogs).forEach(([peerId, pFiles]) => {
+        (pFiles || []).forEach(rf => {
+          if (!localNames.has(rf.name)) {
+            list.push({
+              ...rf,
+              isLocal: false,
+              isServer: false,
+              ownerPeerId: peerId,
+              sourceLabel: `Peer (${peerId.slice(-6)})`
+            });
+          }
+        });
+      });
+
+      return list;
+    }
+
     function updateVaultMetrics() {
-      const totalBytes = localFiles.reduce((acc, f) => acc + (f.size || 0), 0);
-      document.getElementById('metricFileCount').textContent = localFiles.length;
+      const unified = getUnifiedFileList();
+      const totalBytes = unified.reduce((acc, f) => acc + (f.size || 0), 0);
+      document.getElementById('metricFileCount').textContent = unified.length;
       document.getElementById('metricTotalSize').textContent = formatBytes(totalBytes);
     }
 
-    function renderVaultTable(files) {
+    function renderVaultTable() {
+      const files = getUnifiedFileList();
       const tbody = document.getElementById('filesTableBody');
+
       if (!files || files.length === 0) {
         tbody.innerHTML = `
           <tr>
             <td colspan="5" class="empty-state">
               <div style="font-size: 36px; margin-bottom: 8px;">📂</div>
-              <strong>No files shared yet in this node</strong>
-              <p>Drag and drop a file above or click Browse Files to test live in real time!</p>
+              <strong>No files shared in mesh yet</strong>
+              <p>Drag and drop a file above or click "Add Test File" to test live in real time!</p>
             </td>
           </tr>`;
         return;
       }
 
-      tbody.innerHTML = files.map(f => `
-        <tr>
-          <td>
-            <div class="file-cell">
-              <span class="ext-badge ${getExtBadgeClass(f.ext)}">${f.ext || 'FILE'}</span>
-              <span>${f.name}</span>
-            </div>
-          </td>
-          <td><strong>${f.size_formatted}</strong></td>
-          <td>
-            <span class="sha-pill" onclick="copyHash('${f.sha256}')" title="Click to copy full SHA-256">
-              ${f.sha256.substring(0, 12)}... 📋
-            </span>
-          </td>
-          <td style="color: var(--text-dim);">${f.modified}</td>
-          <td>
-            <div style="display: flex; gap: 8px;">
-              <button class="btn-table-action btn-dl-act" onclick="downloadVaultFile('${encodeURIComponent(f.name)}')">
-                ⬇ Download
-              </button>
-              <button class="btn-table-action btn-del-act" onclick="deleteVaultFile('${encodeURIComponent(f.name)}')">
-                ✕ Delete
-              </button>
-            </div>
-          </td>
-        </tr>
-      `).join('');
+      tbody.innerHTML = files.map(f => {
+        let sourceBadge = '';
+        let actionButtons = '';
+
+        if (f.isLocal) {
+          sourceBadge = `<span class="badge-source badge-source-local">📂 Local Vault</span>`;
+          actionButtons = `
+            <button class="btn-table-action btn-dl-act" onclick="downloadLocalFile('${encodeURIComponent(f.name)}')">
+              ⬇ Download
+            </button>
+            <button class="btn-table-action btn-del-act" onclick="deleteLocalFile('${encodeURIComponent(f.name)}')">
+              ✕ Delete
+            </button>`;
+        } else if (f.isServer) {
+          sourceBadge = `<span class="badge-source badge-source-server">🖥️ Python Server</span>`;
+          actionButtons = `
+            <a class="btn-table-action btn-dl-act" href="/download/${encodeURIComponent(f.name)}" download="${f.name}">
+              ⬇ Download
+            </a>`;
+        } else {
+          sourceBadge = `<span class="badge-source badge-source-peer">🌐 Peer (${(f.ownerPeerId || '').slice(-6)})</span>`;
+          actionButtons = `
+            <button class="btn-table-action btn-p2p-dl" onclick="requestPeerDownload('${encodeURIComponent(f.name)}', '${f.ownerPeerId}')">
+              ⚡ P2P Download
+            </button>`;
+        }
+
+        return `
+          <tr>
+            <td>
+              <div class="file-cell">
+                <span class="ext-badge ${getExtBadgeClass(f.ext)}">${f.ext || 'FILE'}</span>
+                <span>${f.name}</span>
+              </div>
+            </td>
+            <td>${sourceBadge}</td>
+            <td><strong>${f.size_formatted}</strong></td>
+            <td>
+              <span class="sha-pill" onclick="copyHash('${f.sha256}')" title="Click to copy full SHA-256">
+                ${f.sha256.substring(0, 12)}... 📋
+              </span>
+            </td>
+            <td>
+              <div style="display: flex; gap: 8px;">
+                ${actionButtons}
+              </div>
+            </td>
+          </tr>`;
+      }).join('');
     }
 
     function filterFiles() {
       const q = document.getElementById('searchInput').value.toLowerCase();
-      const filtered = localFiles.filter(f => f.name.toLowerCase().includes(q) || (f.ext && f.ext.toLowerCase().includes(q)));
-      renderVaultTable(filtered);
-    }
-
-    async function downloadVaultFile(encodedName) {
-      const name = decodeURIComponent(encodedName);
-      const record = localFiles.find(f => f.name === name);
-      if (!record || !record.blob) {
-        showToast('[!] File buffer not found locally.');
+      const all = getUnifiedFileList();
+      const filtered = all.filter(f => f.name.toLowerCase().includes(q) || (f.ext && f.ext.toLowerCase().includes(q)));
+      
+      const tbody = document.getElementById('filesTableBody');
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="empty-state">No matching files found.</td></tr>`;
         return;
       }
 
-      // Checksum verification on download
+      tbody.innerHTML = filtered.map(f => {
+        let sourceBadge = '';
+        let actionButtons = '';
+
+        if (f.isLocal) {
+          sourceBadge = `<span class="badge-source badge-source-local">📂 Local Vault</span>`;
+          actionButtons = `
+            <button class="btn-table-action btn-dl-act" onclick="downloadLocalFile('${encodeURIComponent(f.name)}')">⬇ Download</button>
+            <button class="btn-table-action btn-del-act" onclick="deleteLocalFile('${encodeURIComponent(f.name)}')">✕ Delete</button>`;
+        } else if (f.isServer) {
+          sourceBadge = `<span class="badge-source badge-source-server">🖥️ Python Server</span>`;
+          actionButtons = `
+            <a class="btn-table-action btn-dl-act" href="/download/${encodeURIComponent(f.name)}" download="${f.name}">⬇ Download</a>`;
+        } else {
+          sourceBadge = `<span class="badge-source badge-source-peer">🌐 Peer (${(f.ownerPeerId || '').slice(-6)})</span>`;
+          actionButtons = `
+            <button class="btn-table-action btn-p2p-dl" onclick="requestPeerDownload('${encodeURIComponent(f.name)}', '${f.ownerPeerId}')">⚡ P2P Download</button>`;
+        }
+
+        return `
+          <tr>
+            <td>
+              <div class="file-cell">
+                <span class="ext-badge ${getExtBadgeClass(f.ext)}">${f.ext || 'FILE'}</span>
+                <span>${f.name}</span>
+              </div>
+            </td>
+            <td>${sourceBadge}</td>
+            <td><strong>${f.size_formatted}</strong></td>
+            <td>
+              <span class="sha-pill" onclick="copyHash('${f.sha256}')">${f.sha256.substring(0, 12)}... 📋</span>
+            </td>
+            <td><div style="display: flex; gap: 8px;">${actionButtons}</div></td>
+          </tr>`;
+      }).join('');
+    }
+
+    async function downloadLocalFile(encodedName) {
+      const name = decodeURIComponent(encodedName);
+      const record = await dbGetFile(name);
+      if (!record || !record.blob) {
+        showToast('[!] File buffer not found in local vault.');
+        return;
+      }
+
       const arrayBuffer = await record.blob.arrayBuffer();
       const hash = await calculateSHA256(arrayBuffer);
 
       if (hash === record.sha256) {
-        const url = URL.createObjectURL(record.blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = record.name;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        triggerBlobDownload(record.blob, record.name);
         showToast(`✅ Bit-for-bit SHA-256 verified! Download started.`);
       } else {
         alert("Integrity Failure: Checksum did not match expected SHA-256!");
       }
     }
 
-    async function deleteVaultFile(encodedName) {
+    async function requestPeerDownload(encodedName, peerId) {
+      const name = decodeURIComponent(encodedName);
+      const conn = activeConnections[peerId];
+
+      if (!conn || !conn.open) {
+        // Fallback: check any open connection
+        const fallbackConn = Object.values(activeConnections).find(c => c && c.open);
+        if (fallbackConn) {
+          updateTransferBox(`Requesting '${name}' from peer...`, 5);
+          fallbackConn.send({ type: 'FILE_REQUEST', name: name });
+          return;
+        }
+        alert('Cannot download: Remote peer is no longer connected.');
+        return;
+      }
+
+      updateTransferBox(`Requesting '${name}' from peer node...`, 5);
+      conn.send({ type: 'FILE_REQUEST', name: name });
+    }
+
+    async function deleteLocalFile(encodedName) {
       const name = decodeURIComponent(encodedName);
       if (!confirm(`Are you sure you want to delete '${name}'?`)) return;
 
       await dbDelete(name);
-      broadcast({ type: 'P2P_FILE_DELETE', name });
       await refreshVault();
-      showToast(`🗑️ File '${name}' deleted.`);
+      broadcastCatalog();
+      showToast(`🗑️ File '${name}' deleted from local vault.`);
     }
 
-    // Drag & Drop
+    // =========================================================================
+    // 5. SAMPLE TEST FILE GENERATOR (Instant Viva Evaluation Helper)
+    // =========================================================================
+    async function addSampleTestDocument() {
+      const docId = Math.random().toString(36).substring(2, 6).toUpperCase();
+      const fname = `AeroShare_Report_${docId}.txt`;
+      const content = `================================================================================
+AEROSHARE DISTRIBUTED FILE SHARING SYSTEM — P2P EVALUATION REPORT
+================================================================================
+Project: MCA 1st Semester — Vivek
+Timestamp: ${new Date().toISOString()}
+Node Origin: ${peer ? peer.id : 'Local Node'}
+Network Protocol: WebRTC DataChannel SCTP (RFC 8831)
+Integrity Hashing: SHA-256 (FIPS PUB 180-4)
+Room: ${currentRoom}
+
+This document was generated dynamically to demonstrate instant real-time
+peer-to-peer file transfer, catalog synchronization, and cryptographic SHA-256
+verification across devices on GitHub Pages.
+================================================================================`;
+
+      const blob = new Blob([content], { type: 'text/plain' });
+      const arrayBuffer = await blob.arrayBuffer();
+      const sha = await calculateSHA256(arrayBuffer);
+
+      const record = {
+        name: fname,
+        size: blob.size,
+        size_formatted: formatBytes(blob.size),
+        ext: 'TXT',
+        mimeType: 'text/plain',
+        sha256: sha,
+        modified: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+        blob: blob
+      };
+
+      await dbSave(record);
+      await refreshVault();
+      broadcastCatalog();
+      showToast(`✅ Added sample test file '${fname}' and synced to mesh!`);
+    }
+
+    // =========================================================================
+    // 6. UPLOAD HANDLING & DRAG & DROP
+    // =========================================================================
     const dropZone = document.getElementById('dropZone');
 
     ['dragenter', 'dragover'].forEach(name => {
@@ -1170,28 +1658,14 @@
     }
 
     async function processFiles(fileList) {
-      const tBox = document.getElementById('transferBox');
-      const tName = document.getElementById('transferFilename');
-      const tPercent = document.getElementById('transferPercent');
-      const tProg = document.getElementById('transferProgress');
-
-      tBox.style.display = 'block';
-
       for (let i = 0; i < fileList.length; i++) {
         const file = fileList[i];
-        tName.textContent = `Streaming: ${file.name} (${i + 1}/${fileList.length})`;
-        tPercent.textContent = '20%';
-        tProg.style.width = '20%';
+        updateTransferBox(`Calculating SHA-256 for '${file.name}'...`, 40);
 
         const arrayBuffer = await file.arrayBuffer();
-        tPercent.textContent = '60%';
-        tProg.style.width = '60%';
-
         const hash = await calculateSHA256(arrayBuffer);
-        tPercent.textContent = '90%';
-        tProg.style.width = '90%';
-
         const ext = file.name.split('.').pop().toUpperCase() || 'FILE';
+
         const record = {
           name: file.name,
           size: file.size,
@@ -1204,34 +1678,16 @@
         };
 
         await dbSave(record);
-
-        // Stream binary chunk across all active WebRTC peers in real time
-        broadcast({
-          type: 'P2P_FILE_TRANSFER',
-          name: file.name,
-          size: file.size,
-          ext: ext,
-          mimeType: file.type,
-          modified: record.modified,
-          buffer: arrayBuffer
-        });
-
-        tPercent.textContent = '100%';
-        tProg.style.width = '100%';
       }
 
-      showToast(`✅ Successfully processed and hashed ${fileList.length} file(s)!`);
-      setTimeout(() => { tBox.style.display = 'none'; }, 1200);
+      updateTransferBox(`Saved and hashed ${fileList.length} file(s)!`, 100);
+      setTimeout(hideTransferBox, 900);
+      showToast(`✅ Successfully added ${fileList.length} file(s) to mesh!`);
       await refreshVault();
+      broadcastCatalog();
     }
 
-    // Cross-tab synchronization
-    try {
-      const bc = new BroadcastChannel('aeroshare_sync');
-      bc.onmessage = () => { refreshVault(); };
-    } catch (e) {}
-
-    // Boot
+    // Boot on DOM ready
     window.addEventListener('DOMContentLoaded', async () => {
       await initDB();
       await refreshVault();
