@@ -1,12 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AeroShare — Distributed Peer-to-Peer File Mesh</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet">
   <!-- PeerJS for Direct WebRTC SCTP DataChannels -->
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <!-- MQTT.js for Real-Time Zero-Server Room Signaling & Mesh Discovery -->
@@ -17,7 +20,7 @@
       --bg-surface: #0e1524;
       --bg-card: rgba(16, 24, 40, 0.7);
       --bg-card-hover: rgba(22, 34, 58, 0.85);
-      
+
       --border-subtle: rgba(255, 255, 255, 0.07);
       --border-focus: rgba(99, 102, 241, 0.5);
       --border-glow: rgba(56, 189, 248, 0.35);
@@ -54,7 +57,7 @@
     body {
       font-family: var(--font-ui);
       background-color: var(--bg-base);
-      background-image: 
+      background-image:
         radial-gradient(circle at 15% 15%, rgba(99, 102, 241, 0.08) 0%, transparent 40%),
         radial-gradient(circle at 85% 85%, rgba(6, 182, 212, 0.08) 0%, transparent 40%);
       color: var(--text-main);
@@ -149,9 +152,20 @@
     }
 
     @keyframes pulse {
-      0% { transform: scale(0.95); opacity: 0.8; }
-      50% { transform: scale(1.3); opacity: 1; }
-      100% { transform: scale(0.95); opacity: 0.8; }
+      0% {
+        transform: scale(0.95);
+        opacity: 0.8;
+      }
+
+      50% {
+        transform: scale(1.3);
+        opacity: 1;
+      }
+
+      100% {
+        transform: scale(0.95);
+        opacity: 0.8;
+      }
     }
 
     .btn-action-primary {
@@ -318,10 +332,25 @@
       flex-shrink: 0;
     }
 
-    .icon-files { background: rgba(6, 182, 212, 0.15); color: var(--accent-cyan); }
-    .icon-vault { background: rgba(99, 102, 241, 0.15); color: var(--primary); }
-    .icon-transfer { background: rgba(16, 185, 129, 0.15); color: var(--accent-emerald); }
-    .icon-security { background: rgba(245, 158, 11, 0.15); color: var(--accent-amber); }
+    .icon-files {
+      background: rgba(6, 182, 212, 0.15);
+      color: var(--accent-cyan);
+    }
+
+    .icon-vault {
+      background: rgba(99, 102, 241, 0.15);
+      color: var(--primary);
+    }
+
+    .icon-transfer {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--accent-emerald);
+    }
+
+    .icon-security {
+      background: rgba(245, 158, 11, 0.15);
+      color: var(--accent-amber);
+    }
 
     .metric-data h3 {
       font-size: 0.72rem;
@@ -353,7 +382,8 @@
       box-shadow: var(--shadow-soft);
     }
 
-    .vault-dropzone:hover, .vault-dropzone.dragover {
+    .vault-dropzone:hover,
+    .vault-dropzone.dragover {
       border-color: var(--accent-cyan);
       background: rgba(99, 102, 241, 0.05);
       box-shadow: var(--shadow-glow);
@@ -368,8 +398,15 @@
     }
 
     @keyframes float {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-6px); }
+
+      0%,
+      100% {
+        transform: translateY(0);
+      }
+
+      50% {
+        transform: translateY(-6px);
+      }
     }
 
     .vault-dropzone h2 {
@@ -520,12 +557,35 @@
       letter-spacing: 0.04em;
     }
 
-    .badge-pdf { background: rgba(244, 63, 94, 0.15); color: #fb7185; }
-    .badge-doc { background: rgba(56, 189, 248, 0.15); color: #38bdf8; }
-    .badge-img { background: rgba(16, 185, 129, 0.15); color: #34d399; }
-    .badge-code { background: rgba(129, 140, 248, 0.15); color: #a5b4fc; }
-    .badge-zip { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
-    .badge-other { background: rgba(148, 163, 184, 0.15); color: #cbd5e1; }
+    .badge-pdf {
+      background: rgba(244, 63, 94, 0.15);
+      color: #fb7185;
+    }
+
+    .badge-doc {
+      background: rgba(56, 189, 248, 0.15);
+      color: #38bdf8;
+    }
+
+    .badge-img {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+    }
+
+    .badge-code {
+      background: rgba(129, 140, 248, 0.15);
+      color: #a5b4fc;
+    }
+
+    .badge-zip {
+      background: rgba(245, 158, 11, 0.15);
+      color: #fbbf24;
+    }
+
+    .badge-other {
+      background: rgba(148, 163, 184, 0.15);
+      color: #cbd5e1;
+    }
 
     .sha-pill {
       font-family: var(--font-mono);
@@ -688,11 +748,19 @@
     }
 
     @keyframes slideIn {
-      from { transform: translateY(20px); opacity: 0; }
-      to { transform: translateY(0); opacity: 1; }
+      from {
+        transform: translateY(20px);
+        opacity: 0;
+      }
+
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
     }
   </style>
 </head>
+
 <body>
 
   <!-- Top Navigation Header -->
@@ -726,15 +794,18 @@
         <span class="mesh-label">🌐 WebRTC Room:</span>
         <span class="mesh-tag" id="currentRoomTag">vivek-mca</span>
         <span class="mesh-label" style="margin-left: 4px;">Node ID:</span>
-        <span class="mesh-tag" id="myNodeIdDisplay" onclick="copyNodeId()" title="Click to copy your Node ID" style="cursor: pointer; background: rgba(6, 182, 212, 0.14); color: #38bdf8; border-color: rgba(6, 182, 212, 0.35);">connecting...</span>
+        <span class="mesh-tag" id="myNodeIdDisplay" onclick="copyNodeId()" title="Click to copy your Node ID"
+          style="cursor: pointer; background: rgba(6, 182, 212, 0.14); color: #38bdf8; border-color: rgba(6, 182, 212, 0.35);">connecting...</span>
         <span class="mesh-peers" id="peersCountBadge">🟡 Initializing Mesh...</span>
       </div>
       <div class="mesh-controls">
-        <button class="btn-action-ghost" onclick="addSampleTestDocument()" title="Add instant demo file to test peer transfer without browsing files">📄 Add Test File</button>
+        <button class="btn-action-ghost" onclick="addSampleTestDocument()"
+          title="Add instant demo file to test peer transfer without browsing files">📄 Add Test File</button>
         <button class="btn-action-primary" onclick="copyShareableLink()">🔗 Copy Room Link</button>
         <input type="text" class="input-mesh" id="roomInput" placeholder="Room ID..." value="vivek-mca">
         <button class="btn-action-ghost" onclick="switchRoom()">Join</button>
-        <input type="text" class="input-mesh" id="directPeerInput" placeholder="Peer ID (e.g. NODE-XXXX)..." style="width: 190px;">
+        <input type="text" class="input-mesh" id="directPeerInput" placeholder="Peer ID (e.g. NODE-XXXX)..."
+          style="width: 190px;">
         <button class="btn-action-ghost" onclick="connectToDirectPeer()">Connect</button>
       </div>
     </div>
@@ -798,7 +869,8 @@
         <div class="vault-title">
           <span>📦</span> Distributed Storage Repository
         </div>
-        <input type="text" class="search-vault" id="searchInput" placeholder="🔍 Search by filename or type..." onkeyup="filterFiles()">
+        <input type="text" class="search-vault" id="searchInput" placeholder="🔍 Search by filename or type..."
+          onkeyup="filterFiles()">
       </div>
 
       <div class="table-vault">
@@ -1054,14 +1126,14 @@
       Object.values(activeConnections).forEach(conn => {
         try {
           if (conn && conn.open) conn.send(payload);
-        } catch (e) {}
+        } catch (e) { }
       });
     }
 
     function initSignaling() {
       // Connect to public MQTT WebSocket broker (EMQX)
       const brokerUrl = "wss://broker.emqx.io:8084/mqtt";
-      
+
       try {
         if (typeof mqtt !== 'undefined') {
           mqttClient = mqtt.connect(brokerUrl, {
@@ -1074,7 +1146,7 @@
           mqttClient.on('connect', () => {
             console.log('[MQTT] Connected to signaling broker:', brokerUrl);
             document.getElementById('nodeStatusLabel').textContent = `Mesh Active (${myNodeId.slice(-4)})`;
-            
+
             // Subscribe to room channel and personal direct channel
             mqttClient.subscribe(getRoomTopic());
             mqttClient.subscribe(getDirectTopic(myNodeId));
@@ -1125,7 +1197,7 @@
 
         // Also initiate WebRTC DataConnection
         connectToPeerWebRTC(msg.from);
-      } 
+      }
       else if (msg.type === 'WELCOME') {
         knownPeers.add(msg.from);
         peerCatalogs[msg.from] = msg.files || [];
@@ -1136,7 +1208,7 @@
 
         // Connect WebRTC if not connected
         connectToPeerWebRTC(msg.from);
-      } 
+      }
       else if (msg.type === 'CATALOG_SYNC') {
         knownPeers.add(msg.from);
         peerCatalogs[msg.from] = msg.files || [];
@@ -1144,7 +1216,7 @@
         renderVaultTable();
         updateVaultMetrics();
         showToast(`📦 Peer '${msg.from}' updated files (${(msg.files || []).length} total)`);
-      } 
+      }
       else if (msg.type === 'FILE_REQUEST') {
         handleFileRequest(msg.from, msg.name, msg.transferId);
       }
@@ -1227,10 +1299,10 @@
           peerCatalogs[conn.peer] = msg.files || [];
           renderVaultTable();
           updateVaultMetrics();
-        } 
+        }
         else if (msg.type === 'FILE_REQUEST') {
           handleFileRequest(conn.peer, msg.name, msg.transferId, conn);
-        } 
+        }
         else if (msg.type === 'FILE_CHUNK_WEBRTC') {
           handleIncomingChunk(msg);
         }
@@ -1270,7 +1342,7 @@
       currentRoom = newRoom;
       window.location.hash = `room=${encodeURIComponent(newRoom)}`;
       document.getElementById('currentRoomTag').textContent = currentRoom;
-      
+
       // Re-initialize mesh for new room
       knownPeers.clear();
       peerCatalogs = {};
@@ -1371,7 +1443,7 @@
         const raw = atob(msg.chunkBase64);
         const bytes = new Uint8Array(raw.length);
         for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
-        
+
         t.chunks[msg.chunkIndex] = bytes;
         t.received++;
 
@@ -1595,7 +1667,7 @@
       const q = document.getElementById('searchInput').value.toLowerCase();
       const all = getUnifiedFileList();
       const filtered = all.filter(f => f.name.toLowerCase().includes(q) || (f.ext && f.ext.toLowerCase().includes(q)));
-      
+
       const tbody = document.getElementById('filesTableBody');
       if (filtered.length === 0) {
         tbody.innerHTML = `<tr><td colspan="5" class="empty-state">No matching files found.</td></tr>`;
@@ -1806,4 +1878,5 @@ cryptographic verification across separate devices on GitHub Pages.
     });
   </script>
 </body>
+
 </html>
