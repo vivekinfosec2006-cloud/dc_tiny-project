@@ -3,23 +3,26 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Distributed File Sharing System — Live Real-Time Dashboard</title>
+  <title>AeroShare — Distributed Peer-to-Peer File Mesh</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <!-- PeerJS for Real-Time Serverless WebRTC P2P Data Channels -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- PeerJS for Real-Time Serverless WebRTC Mesh Channels -->
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <style>
     :root {
-      --bg-canvas: #060913;
-      --bg-surface: #0c1322;
-      --bg-card: rgba(15, 23, 42, 0.75);
-      --border-subtle: rgba(255, 255, 255, 0.08);
+      --bg-base: #080c14;
+      --bg-surface: #0e1524;
+      --bg-card: rgba(16, 24, 40, 0.7);
+      --bg-card-hover: rgba(22, 34, 58, 0.85);
+      
+      --border-subtle: rgba(255, 255, 255, 0.07);
+      --border-focus: rgba(99, 102, 241, 0.5);
       --border-glow: rgba(56, 189, 248, 0.35);
 
-      --accent-cyan: #38bdf8;
-      --accent-cyan-glow: rgba(56, 189, 248, 0.25);
-      --accent-indigo: #818cf8;
+      --primary: #6366f1;
+      --primary-gradient: linear-gradient(135deg, #6366f1 0%, #06b6d4 100%);
+      --accent-cyan: #06b6d4;
       --accent-emerald: #10b981;
       --accent-rose: #f43f5e;
       --accent-amber: #f59e0b;
@@ -28,10 +31,16 @@
       --text-muted: #94a3b8;
       --text-dim: #64748b;
 
+      --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+
       --radius-sm: 8px;
       --radius-md: 14px;
       --radius-lg: 20px;
       --radius-full: 9999px;
+
+      --shadow-soft: 0 4px 20px rgba(0, 0, 0, 0.4);
+      --shadow-glow: 0 0 25px rgba(99, 102, 241, 0.2);
     }
 
     * {
@@ -41,33 +50,34 @@
     }
 
     body {
-      font-family: 'Plus Jakarta Sans', sans-serif;
-      background-color: var(--bg-canvas);
+      font-family: var(--font-ui);
+      background-color: var(--bg-base);
       background-image: 
-        radial-gradient(circle at 10% 20%, rgba(56, 189, 248, 0.08) 0%, transparent 45%),
-        radial-gradient(circle at 90% 80%, rgba(129, 140, 248, 0.08) 0%, transparent 45%);
+        radial-gradient(circle at 15% 15%, rgba(99, 102, 241, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 85% 85%, rgba(6, 182, 212, 0.08) 0%, transparent 40%);
       color: var(--text-main);
       min-height: 100vh;
       display: flex;
       flex-direction: column;
       line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
     }
 
-    /* Top Navigation Header */
+    /* Enterprise Navigation Header */
     header {
       position: sticky;
       top: 0;
-      z-index: 50;
-      background: rgba(6, 9, 19, 0.88);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
+      z-index: 100;
+      background: rgba(8, 12, 20, 0.88);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
       border-bottom: 1px solid var(--border-subtle);
-      padding: 0.9rem 2rem;
+      padding: 0.85rem 2.2rem;
       display: flex;
       justify-content: space-between;
       align-items: center;
       flex-wrap: wrap;
-      gap: 12px;
+      gap: 14px;
     }
 
     .brand {
@@ -76,44 +86,45 @@
       gap: 12px;
     }
 
-    .brand-icon {
-      width: 42px;
-      height: 42px;
+    .brand-mark {
+      width: 40px;
+      height: 40px;
       border-radius: var(--radius-md);
-      background: linear-gradient(135deg, #0284c7, #6366f1);
+      background: var(--primary-gradient);
       display: flex;
       align-items: center;
       justify-content: center;
-      color: white;
-      font-size: 22px;
-      box-shadow: 0 0 20px rgba(56, 189, 248, 0.35);
+      color: #fff;
+      font-size: 20px;
+      font-weight: 800;
+      box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
     }
 
-    .brand-text h1 {
-      font-size: 1.15rem;
+    .brand-meta h1 {
+      font-size: 1.12rem;
       font-weight: 800;
       letter-spacing: -0.02em;
-      background: linear-gradient(135deg, #ffffff 40%, #94a3b8);
+      background: linear-gradient(135deg, #ffffff 40%, #cbd5e1);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
     }
 
-    .brand-text p {
+    .brand-meta p {
       font-size: 0.72rem;
       color: var(--text-dim);
       font-weight: 600;
-      letter-spacing: 0.04em;
+      letter-spacing: 0.06em;
       text-transform: uppercase;
     }
 
-    .header-actions {
+    .nav-actions {
       display: flex;
       align-items: center;
       gap: 10px;
       flex-wrap: wrap;
     }
 
-    .status-badge {
+    .status-pill {
       display: flex;
       align-items: center;
       gap: 8px;
@@ -141,13 +152,34 @@
       100% { transform: scale(0.95); opacity: 0.8; }
     }
 
-    .btn-header {
-      background: rgba(56, 189, 248, 0.12);
-      border: 1px solid var(--border-glow);
-      color: var(--accent-cyan);
-      padding: 6px 14px;
+    .btn-action-primary {
+      background: var(--primary-gradient);
+      border: none;
+      color: white;
+      padding: 7px 18px;
       border-radius: var(--radius-full);
-      font-size: 0.78rem;
+      font-size: 0.8rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 14px rgba(99, 102, 241, 0.3);
+    }
+
+    .btn-action-primary:hover {
+      box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
+      transform: translateY(-1px);
+    }
+
+    .btn-action-ghost {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-main);
+      padding: 7px 16px;
+      border-radius: var(--radius-full);
+      font-size: 0.8rem;
       font-weight: 600;
       cursor: pointer;
       display: flex;
@@ -156,213 +188,212 @@
       transition: all 0.2s ease;
     }
 
-    .btn-header:hover {
-      background: rgba(56, 189, 248, 0.22);
-      transform: translateY(-1px);
+    .btn-action-ghost:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.2);
     }
 
-    /* Main Container */
+    /* Main Content Layout */
     main {
-      max-width: 1200px;
+      max-width: 1240px;
       width: 100%;
       margin: 0 auto;
-      padding: 2rem 1.5rem;
+      padding: 2.2rem 1.8rem;
       flex: 1;
       display: flex;
       flex-direction: column;
-      gap: 1.6rem;
+      gap: 1.8rem;
     }
 
-    /* P2P Room Bar */
-    .p2p-bar {
+    /* P2P Live Mesh Ribbon */
+    .mesh-ribbon {
       background: var(--bg-card);
-      backdrop-filter: blur(12px);
+      backdrop-filter: blur(14px);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-md);
-      padding: 1rem 1.4rem;
+      padding: 1.1rem 1.6rem;
       display: flex;
       justify-content: space-between;
       align-items: center;
       flex-wrap: wrap;
       gap: 14px;
+      box-shadow: var(--shadow-soft);
     }
 
-    .p2p-info {
+    .mesh-info {
       display: flex;
       align-items: center;
       gap: 12px;
       flex-wrap: wrap;
     }
 
-    .room-tag {
-      background: rgba(129, 140, 248, 0.15);
-      border: 1px solid rgba(129, 140, 248, 0.3);
-      color: var(--accent-indigo);
-      padding: 4px 12px;
-      border-radius: var(--radius-full);
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.8rem;
-      font-weight: 700;
-    }
-
-    .peers-count {
-      color: var(--text-muted);
+    .mesh-label {
       font-size: 0.82rem;
-      font-weight: 600;
+      font-weight: 700;
+      color: var(--text-muted);
       display: flex;
       align-items: center;
       gap: 6px;
     }
 
-    .room-actions {
+    .mesh-tag {
+      background: rgba(99, 102, 241, 0.14);
+      border: 1px solid rgba(99, 102, 241, 0.35);
+      color: #a5b4fc;
+      padding: 4px 14px;
+      border-radius: var(--radius-full);
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+
+    .mesh-peers {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--accent-emerald);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .mesh-controls {
       display: flex;
       align-items: center;
       gap: 8px;
     }
 
-    .input-room {
-      background: rgba(15, 23, 42, 0.8);
+    .input-mesh {
+      background: rgba(14, 21, 36, 0.9);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-full);
       padding: 6px 14px;
       color: var(--text-main);
-      font-family: 'JetBrains Mono', monospace;
+      font-family: var(--font-mono);
       font-size: 0.8rem;
       outline: none;
-      width: 140px;
+      width: 150px;
+      transition: border-color 0.2s;
     }
 
-    .input-room:focus {
+    .input-mesh:focus {
       border-color: var(--accent-cyan);
     }
 
-    /* Metrics Grid */
+    /* Metric Cards Grid */
     .metrics-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-      gap: 1rem;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1.1rem;
     }
 
     .metric-card {
       background: var(--bg-card);
-      backdrop-filter: blur(12px);
+      backdrop-filter: blur(14px);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-md);
-      padding: 1.2rem;
+      padding: 1.3rem 1.4rem;
       display: flex;
       align-items: center;
-      gap: 14px;
-      transition: border-color 0.2s, transform 0.2s;
+      gap: 16px;
+      box-shadow: var(--shadow-soft);
+      transition: all 0.25s ease;
     }
 
     .metric-card:hover {
-      border-color: var(--border-glow);
+      border-color: var(--border-focus);
       transform: translateY(-2px);
     }
 
-    .metric-icon {
-      width: 48px;
-      height: 48px;
-      border-radius: var(--radius-sm);
+    .metric-icon-wrap {
+      width: 50px;
+      height: 50px;
+      border-radius: var(--radius-md);
       display: flex;
       align-items: center;
       justify-content: center;
       font-size: 22px;
+      flex-shrink: 0;
     }
 
-    .icon-files { background: rgba(56, 189, 248, 0.15); color: var(--accent-cyan); }
-    .icon-storage { background: rgba(129, 140, 248, 0.15); color: var(--accent-indigo); }
-    .icon-socket { background: rgba(16, 185, 129, 0.15); color: var(--accent-emerald); }
-    .icon-lan { background: rgba(245, 158, 11, 0.15); color: var(--accent-amber); }
+    .icon-files { background: rgba(6, 182, 212, 0.15); color: var(--accent-cyan); }
+    .icon-vault { background: rgba(99, 102, 241, 0.15); color: var(--primary); }
+    .icon-transfer { background: rgba(16, 185, 129, 0.15); color: var(--accent-emerald); }
+    .icon-security { background: rgba(245, 158, 11, 0.15); color: var(--accent-amber); }
 
-    .metric-info h3 {
+    .metric-data h3 {
       font-size: 0.72rem;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.06em;
       color: var(--text-dim);
       font-weight: 700;
     }
 
-    .metric-info p {
+    .metric-data p {
       font-size: 1.45rem;
       font-weight: 800;
       color: var(--text-main);
-      margin-top: 2px;
+      margin-top: 3px;
       letter-spacing: -0.02em;
     }
 
-    /* Drag & Drop Upload Zone */
-    .upload-zone {
+    /* Professional Drag & Drop Vault */
+    .vault-dropzone {
       background: var(--bg-card);
-      backdrop-filter: blur(12px);
-      border: 2px dashed rgba(56, 189, 248, 0.35);
+      backdrop-filter: blur(14px);
+      border: 2px dashed rgba(99, 102, 241, 0.35);
       border-radius: var(--radius-lg);
-      padding: 2.2rem 1.5rem;
+      padding: 2.8rem 1.8rem;
       text-align: center;
       cursor: pointer;
       position: relative;
       transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: var(--shadow-soft);
     }
 
-    .upload-zone:hover, .upload-zone.dragover {
+    .vault-dropzone:hover, .vault-dropzone.dragover {
       border-color: var(--accent-cyan);
-      background: rgba(56, 189, 248, 0.06);
-      transform: scale(1.005);
+      background: rgba(99, 102, 241, 0.05);
+      box-shadow: var(--shadow-glow);
+      transform: scale(1.004);
     }
 
-    .upload-icon {
-      font-size: 42px;
-      margin-bottom: 8px;
+    .vault-icon {
+      font-size: 46px;
+      margin-bottom: 10px;
       display: inline-block;
       animation: float 3s ease-in-out infinite;
     }
 
     @keyframes float {
       0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-5px); }
+      50% { transform: translateY(-6px); }
     }
 
-    .upload-zone h2 {
-      font-size: 1.15rem;
-      font-weight: 700;
-      margin-bottom: 4px;
+    .vault-dropzone h2 {
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 5px;
     }
 
-    .upload-zone p {
-      font-size: 0.85rem;
+    .vault-dropzone p {
+      font-size: 0.88rem;
       color: var(--text-muted);
     }
 
-    .btn-browse {
-      display: inline-block;
-      margin-top: 14px;
-      background: linear-gradient(135deg, #0284c7, #6366f1);
-      color: white;
-      font-size: 0.85rem;
-      font-weight: 700;
-      padding: 8px 22px;
-      border-radius: var(--radius-full);
-      box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);
-      transition: all 0.2s;
-    }
-
-    .btn-browse:hover {
-      box-shadow: 0 6px 20px rgba(2, 132, 199, 0.5);
-      transform: translateY(-1px);
-    }
-
-    /* Upload Progress Overlay */
-    .progress-box {
-      margin-top: 16px;
+    /* Transfer Progress Bar */
+    .transfer-status-box {
+      margin-top: 18px;
       display: none;
-      background: rgba(6, 9, 19, 0.95);
+      background: rgba(8, 12, 20, 0.95);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-md);
-      padding: 14px 18px;
+      padding: 14px 20px;
       text-align: left;
     }
 
-    .progress-header {
+    .transfer-header {
       display: flex;
       justify-content: space-between;
       font-size: 0.82rem;
@@ -370,63 +401,70 @@
       margin-bottom: 8px;
     }
 
-    .progress-bar-bg {
+    .progress-track {
       height: 8px;
-      background: rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.08);
       border-radius: var(--radius-full);
       overflow: hidden;
     }
 
-    .progress-bar-fill {
+    .progress-fill {
       height: 100%;
       width: 0%;
-      background: linear-gradient(90deg, #38bdf8, #10b981);
+      background: linear-gradient(90deg, #6366f1, #06b6d4, #10b981);
       border-radius: var(--radius-full);
       transition: width 0.15s ease;
     }
 
-    /* Explorer Section */
-    .explorer-header {
+    /* File Repository Section */
+    .vault-section {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .vault-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 1rem;
       flex-wrap: wrap;
       gap: 12px;
     }
 
-    .explorer-title {
-      font-size: 1.15rem;
+    .vault-title {
+      font-size: 1.18rem;
       font-weight: 800;
       display: flex;
       align-items: center;
       gap: 8px;
+      letter-spacing: -0.01em;
     }
 
-    .search-input {
-      background: rgba(15, 23, 42, 0.8);
+    .search-vault {
+      background: rgba(14, 21, 36, 0.85);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-full);
-      padding: 8px 18px;
+      padding: 8px 20px;
       color: var(--text-main);
       font-size: 0.85rem;
-      width: 260px;
+      width: 280px;
       outline: none;
       transition: all 0.2s;
     }
 
-    .search-input:focus {
+    .search-vault:focus {
       border-color: var(--accent-cyan);
-      box-shadow: 0 0 14px var(--accent-cyan-glow);
+      box-shadow: 0 0 16px rgba(6, 182, 212, 0.2);
     }
 
-    /* Files Table */
-    .table-card {
+    /* Professional Table Card */
+    .table-vault {
       background: var(--bg-card);
-      backdrop-filter: blur(12px);
+      backdrop-filter: blur(14px);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-lg);
       overflow-x: auto;
+      box-shadow: var(--shadow-soft);
     }
 
     table {
@@ -436,12 +474,12 @@
     }
 
     thead th {
-      background: rgba(6, 9, 19, 0.6);
-      padding: 12px 18px;
+      background: rgba(8, 12, 20, 0.6);
+      padding: 14px 20px;
       font-size: 0.72rem;
       font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.06em;
       color: var(--text-dim);
       border-bottom: 1px solid var(--border-subtle);
       white-space: nowrap;
@@ -453,157 +491,157 @@
     }
 
     tbody tr:hover {
-      background: rgba(56, 189, 248, 0.04);
+      background: rgba(99, 102, 241, 0.04);
     }
 
     tbody td {
-      padding: 14px 18px;
-      font-size: 0.85rem;
+      padding: 15px 20px;
+      font-size: 0.86rem;
       vertical-align: middle;
       white-space: nowrap;
     }
 
-    .file-name-cell {
+    .file-cell {
       display: flex;
       align-items: center;
       gap: 12px;
       font-weight: 600;
     }
 
-    .file-badge {
-      padding: 4px 8px;
+    .ext-badge {
+      padding: 4px 9px;
       border-radius: var(--radius-sm);
-      font-size: 0.65rem;
+      font-size: 0.66rem;
       font-weight: 800;
       text-transform: uppercase;
-      font-family: 'JetBrains Mono', monospace;
-      background: rgba(56, 189, 248, 0.12);
-      color: var(--accent-cyan);
+      font-family: var(--font-mono);
+      letter-spacing: 0.04em;
     }
 
-    .hash-badge {
-      font-family: 'JetBrains Mono', monospace;
+    .badge-pdf { background: rgba(244, 63, 94, 0.15); color: #fb7185; }
+    .badge-doc { background: rgba(56, 189, 248, 0.15); color: #38bdf8; }
+    .badge-img { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+    .badge-code { background: rgba(129, 140, 248, 0.15); color: #a5b4fc; }
+    .badge-zip { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+    .badge-other { background: rgba(148, 163, 184, 0.15); color: #cbd5e1; }
+
+    .sha-pill {
+      font-family: var(--font-mono);
       font-size: 0.72rem;
       color: var(--text-muted);
       background: rgba(255, 255, 255, 0.04);
-      padding: 3px 8px;
+      padding: 3px 9px;
       border-radius: 6px;
       cursor: pointer;
       display: inline-block;
-      transition: color 0.2s;
+      transition: color 0.2s, background 0.2s;
     }
 
-    .hash-badge:hover {
+    .sha-pill:hover {
       color: var(--accent-cyan);
+      background: rgba(6, 182, 212, 0.1);
     }
 
-    .actions-cell {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .btn-action {
-      padding: 6px 12px;
+    .btn-table-action {
+      padding: 6px 13px;
       border-radius: var(--radius-sm);
       font-size: 0.75rem;
       font-weight: 700;
       border: none;
       cursor: pointer;
-      display: flex;
+      display: inline-flex;
       align-items: center;
-      gap: 4px;
+      gap: 5px;
       text-decoration: none;
       transition: all 0.2s;
     }
 
-    .btn-dl {
+    .btn-dl-act {
       background: rgba(16, 185, 129, 0.15);
       color: var(--accent-emerald);
       border: 1px solid rgba(16, 185, 129, 0.3);
     }
 
-    .btn-dl:hover {
+    .btn-dl-act:hover {
       background: var(--accent-emerald);
-      color: #060913;
+      color: #080c14;
     }
 
-    .btn-del {
+    .btn-del-act {
       background: rgba(244, 63, 94, 0.12);
       color: var(--accent-rose);
       border: 1px solid rgba(244, 63, 94, 0.25);
     }
 
-    .btn-del:hover {
+    .btn-del-act:hover {
       background: var(--accent-rose);
       color: white;
     }
 
     .empty-state {
-      padding: 4rem 1rem;
+      padding: 4.5rem 1rem;
       text-align: center;
       color: var(--text-muted);
     }
 
-    .empty-state p {
-      font-size: 0.95rem;
-      margin-top: 6px;
-    }
-
-    /* Terminal Helper Card */
-    .cli-card {
+    /* Terminal CLI Info Card */
+    .cli-dock {
       background: var(--bg-card);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-md);
-      padding: 1.2rem;
+      padding: 1.3rem 1.6rem;
       display: flex;
       justify-content: space-between;
       align-items: center;
       flex-wrap: wrap;
       gap: 14px;
+      box-shadow: var(--shadow-soft);
     }
 
-    .cli-text h4 {
-      font-size: 0.85rem;
+    .cli-meta h4 {
+      font-size: 0.88rem;
       font-weight: 700;
       color: var(--text-main);
     }
 
-    .cli-text p {
-      font-size: 0.75rem;
+    .cli-meta p {
+      font-size: 0.76rem;
       color: var(--text-muted);
       margin-top: 2px;
     }
 
-    .cli-code {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.8rem;
-      background: rgba(0, 0, 0, 0.5);
+    .cli-code-badge {
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      background: rgba(0, 0, 0, 0.55);
       border: 1px solid var(--border-subtle);
-      padding: 6px 14px;
+      padding: 7px 16px;
       border-radius: var(--radius-sm);
       color: var(--accent-cyan);
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
 
     /* Toast Notification */
     #toast {
       position: fixed;
-      bottom: 24px;
-      right: 24px;
-      background: rgba(15, 23, 42, 0.95);
+      bottom: 26px;
+      right: 26px;
+      background: rgba(14, 21, 36, 0.95);
       border: 1px solid var(--border-glow);
       backdrop-filter: blur(16px);
       color: var(--text-main);
-      padding: 12px 20px;
+      padding: 12px 22px;
       border-radius: var(--radius-md);
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-      font-size: 0.85rem;
+      box-shadow: 0 10px 35px rgba(0, 0, 0, 0.55);
+      font-size: 0.84rem;
       font-weight: 600;
       display: none;
       align-items: center;
       gap: 10px;
       z-index: 1000;
-      animation: slideIn 0.3s ease;
+      animation: slideIn 0.25s ease;
     }
 
     @keyframes slideIn {
@@ -614,100 +652,107 @@
 </head>
 <body>
 
+  <!-- Top Navigation Header -->
   <header>
     <div class="brand">
-      <div class="brand-icon">⚡</div>
-      <div class="brand-text">
-        <h1>Distributed File Sharing</h1>
+      <div class="brand-mark">⚡</div>
+      <div class="brand-meta">
+        <h1>AeroShare Distributed Mesh</h1>
         <p>MCA 1st Semester Project — Vivek</p>
       </div>
     </div>
-    <div class="header-actions">
-      <div class="status-badge" id="nodeStatusBadge">
+    <div class="nav-actions">
+      <div class="status-pill" id="nodeStatusPill">
         <span class="status-dot"></span>
-        <span id="nodeStatusText">Real-Time P2P Active</span>
+        <span id="nodeStatusLabel">Mesh Active</span>
       </div>
-      <button class="btn-header" onclick="copyShareableRoomLink()">
-        🔗 Copy P2P Link
+      <button class="btn-action-primary" onclick="copyShareableLink()">
+        🔗 Share P2P Room Link
+      </button>
+      <button class="btn-action-ghost" onclick="window.open('PRESENTATION_SLIDES.md', '_blank')">
+        📑 View PPT Slides Doc
       </button>
     </div>
   </header>
 
+  <!-- Main Workspace -->
   <main>
-    <!-- Real-Time P2P Room Configuration -->
-    <div class="p2p-bar">
-      <div class="p2p-info">
-        <span style="font-size: 0.85rem; font-weight: 700;">🌐 P2P Mesh Room:</span>
-        <span class="room-tag" id="currentRoomTag">vivek-mca</span>
-        <span class="peers-count" id="peersCountBadge">🟢 Waiting for peer to connect...</span>
+    <!-- Real-Time P2P Mesh Ribbon -->
+    <div class="mesh-ribbon">
+      <div class="mesh-info">
+        <span class="mesh-label">🌐 WebRTC P2P Room:</span>
+        <span class="mesh-tag" id="currentRoomTag">vivek-mca</span>
+        <span class="mesh-peers" id="peersCountBadge">🟢 Listening for peers...</span>
       </div>
-      <div class="room-actions">
-        <input type="text" class="input-room" id="roomInput" placeholder="Room ID..." value="vivek-mca">
-        <button class="btn-header" onclick="changeRoom()">Join Room</button>
+      <div class="mesh-controls">
+        <input type="text" class="input-mesh" id="roomInput" placeholder="Room ID..." value="vivek-mca">
+        <button class="btn-action-ghost" onclick="switchRoom()">Join Room</button>
       </div>
     </div>
 
-    <!-- Metrics Grid -->
+    <!-- High-Density Metrics Grid -->
     <div class="metrics-grid">
       <div class="metric-card">
-        <div class="metric-icon icon-files">📁</div>
-        <div class="metric-info">
-          <h3>Total Files</h3>
+        <div class="metric-icon-wrap icon-files">📁</div>
+        <div class="metric-data">
+          <h3>Files Stored in Mesh</h3>
           <p id="metricFileCount">0</p>
         </div>
       </div>
       <div class="metric-card">
-        <div class="metric-icon icon-storage">💾</div>
-        <div class="metric-info">
-          <h3>Storage Used</h3>
+        <div class="metric-icon-wrap icon-vault">💾</div>
+        <div class="metric-data">
+          <h3>Total Vault Size</h3>
           <p id="metricTotalSize">0 B</p>
         </div>
       </div>
       <div class="metric-card">
-        <div class="metric-icon icon-socket">⚡</div>
-        <div class="metric-info">
-          <h3>Transmission Mode</h3>
-          <p id="metricNodeMode" style="font-size: 1.15rem;">WebRTC P2P</p>
+        <div class="metric-icon-wrap icon-transfer">⚡</div>
+        <div class="metric-data">
+          <h3>Transfer Engine</h3>
+          <p style="font-size: 1.15rem;">WebRTC + Sockets</p>
         </div>
       </div>
       <div class="metric-card">
-        <div class="metric-icon icon-lan">🛡️</div>
-        <div class="metric-info">
-          <h3>Data Integrity</h3>
-          <p style="font-size: 1.15rem; color: var(--accent-emerald);">SHA-256 Bit-for-Bit</p>
+        <div class="metric-icon-wrap icon-security">🛡️</div>
+        <div class="metric-data">
+          <h3>Bit-Level Integrity</h3>
+          <p style="font-size: 1.15rem; color: var(--accent-emerald);">SHA-256 Verified</p>
         </div>
       </div>
     </div>
 
-    <!-- Drag & Drop Upload Zone -->
-    <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+    <!-- Drag & Drop Upload Vault -->
+    <div class="vault-dropzone" id="dropZone" onclick="document.getElementById('fileInput').click()">
       <input type="file" id="fileInput" multiple style="display: none;" onchange="handleFileSelect(event)">
-      <div class="upload-icon">☁️</div>
-      <h2>Drag & Drop Files Here to Share in Real Time</h2>
-      <p>Files are stored in local node and streamed peer-to-peer to connected devices</p>
-      <span class="btn-browse">Select Files to Share</span>
+      <div class="vault-icon">☁️</div>
+      <h2>Drag & Drop Files Here to Stream Live</h2>
+      <p>Files are stored in local browser vault and streamed peer-to-peer to all connected devices</p>
+      <div style="margin-top: 14px;">
+        <span class="btn-action-primary" style="display: inline-flex;">Browse Files</span>
+      </div>
 
-      <div class="progress-box" id="progressBox" onclick="event.stopPropagation()">
-        <div class="progress-header">
-          <span id="progressFilename">Computing SHA-256 and streaming...</span>
-          <span id="progressPercent">0%</span>
+      <div class="transfer-status-box" id="transferBox" onclick="event.stopPropagation()">
+        <div class="transfer-header">
+          <span id="transferFilename">Processing & calculating SHA-256...</span>
+          <span id="transferPercent">0%</span>
         </div>
-        <div class="progress-bar-bg">
-          <div class="progress-bar-fill" id="progressBar"></div>
+        <div class="progress-track">
+          <div class="progress-fill" id="transferProgress"></div>
         </div>
       </div>
     </div>
 
-    <!-- File Explorer Section -->
-    <section>
-      <div class="explorer-header">
-        <div class="explorer-title">
-          <span>📦</span> Shared Files Repository
+    <!-- Shared Files Repository Section -->
+    <section class="vault-section">
+      <div class="vault-header">
+        <div class="vault-title">
+          <span>📦</span> Distributed Storage Repository
         </div>
-        <input type="text" class="search-input" id="searchInput" placeholder="🔍 Search files..." onkeyup="filterFiles()">
+        <input type="text" class="search-vault" id="searchInput" placeholder="🔍 Search by filename or type..." onkeyup="filterFiles()">
       </div>
 
-      <div class="table-card">
+      <div class="table-vault">
         <table>
           <thead>
             <tr>
@@ -721,8 +766,9 @@
           <tbody id="filesTableBody">
             <tr>
               <td colspan="5" class="empty-state">
-                <div style="font-size: 32px; margin-bottom: 8px;">📂</div>
-                <strong>Loading files...</strong>
+                <div style="font-size: 34px; margin-bottom: 8px;">📂</div>
+                <strong>No files shared yet in this node</strong>
+                <p>Drag and drop a file above or click Browse Files to test live!</p>
               </td>
             </tr>
           </tbody>
@@ -730,14 +776,15 @@
       </div>
     </section>
 
-    <!-- Terminal CLI Quick Reference -->
-    <div class="cli-card">
-      <div class="cli-text">
-        <h4>Terminal Socket Core (Python CLI)</h4>
-        <p>For low-level socket evaluation, run the server and client scripts from your repository:</p>
+    <!-- Terminal Socket CLI Dock -->
+    <div class="cli-dock">
+      <div class="cli-meta">
+        <h4>Low-Level Terminal TCP Socket Core (server.py & client.py)</h4>
+        <p>Demonstrate raw TCP socket streaming over Port 8888 for your viva examination:</p>
       </div>
-      <div class="cli-code" style="cursor: pointer;" title="Click to copy" onclick="navigator.clipboard.writeText('python client.py 127.0.0.1'); showToast('Copied CLI command');">
-        python client.py 127.0.0.1
+      <div class="cli-code-badge" style="cursor: pointer;" title="Click to copy" onclick="copyCliCommand()">
+        <span>python client.py 127.0.0.1</span>
+        <span>📋</span>
       </div>
     </div>
   </main>
@@ -746,19 +793,17 @@
 
   <script>
     // =========================================================================
-    // 1. IN-BROWSER DISTRIBUTED STORAGE ENGINE (IndexedDB)
+    // 1. IN-BROWSER PERSISTENT STORAGE (IndexedDB)
     // Works 100% on GitHub Pages without requiring a backend server!
     // =========================================================================
-    const DB_NAME = "DistributedFileSharingDB";
-    const STORE_NAME = "shared_files";
+    const DB_NAME = "AeroShare_MeshDB";
+    const STORE_NAME = "mesh_files";
     let db = null;
     let localFiles = [];
     let currentRoom = "vivek-mca";
     let peer = null;
     let activeConnections = [];
-    let isLocalBackend = false;
 
-    // Toast Notification
     function showToast(msg) {
       const toast = document.getElementById('toast');
       toast.textContent = msg;
@@ -766,7 +811,6 @@
       setTimeout(() => { toast.style.display = 'none'; }, 3200);
     }
 
-    // Initialize IndexedDB
     function initDB() {
       return new Promise((resolve, reject) => {
         const req = indexedDB.open(DB_NAME, 1);
@@ -784,61 +828,78 @@
       });
     }
 
-    function dbSaveFile(fileRecord) {
+    function dbSave(record) {
       return new Promise((resolve, reject) => {
         const tx = db.transaction(STORE_NAME, "readwrite");
-        const store = tx.objectStore(STORE_NAME);
-        store.put(fileRecord);
+        tx.objectStore(STORE_NAME).put(record);
         tx.oncomplete = () => resolve();
         tx.onerror = (e) => reject(e);
       });
     }
 
-    function dbGetAllFiles() {
+    function dbGetAll() {
       return new Promise((resolve, reject) => {
         const tx = db.transaction(STORE_NAME, "readonly");
-        const store = tx.objectStore(STORE_NAME);
-        const req = store.getAll();
+        const req = tx.objectStore(STORE_NAME).getAll();
         req.onsuccess = () => resolve(req.result || []);
         req.onerror = (e) => reject(e);
       });
     }
 
-    function dbDeleteFile(name) {
+    function dbDelete(name) {
       return new Promise((resolve, reject) => {
         const tx = db.transaction(STORE_NAME, "readwrite");
-        const store = tx.objectStore(STORE_NAME);
-        store.delete(name);
+        tx.objectStore(STORE_NAME).delete(name);
         tx.oncomplete = () => resolve();
         tx.onerror = (e) => reject(e);
       });
     }
 
-    // Format bytes
     function formatBytes(bytes) {
-      if (bytes === 0) return '0 B';
+      if (!bytes || bytes === 0) return '0 B';
       const k = 1024;
       const sizes = ['B', 'KB', 'MB', 'GB'];
       const i = Math.floor(Math.log(bytes) / Math.log(k));
       return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
 
-    // SHA-256 calculation via Web Crypto API
     async function calculateSHA256(arrayBuffer) {
       const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
       const hashArray = Array.from(new Uint8Array(hashBuffer));
       return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
     }
 
-    // Copy checksum
+    function getExtBadgeClass(ext) {
+      ext = (ext || '').toLowerCase();
+      if (['pdf'].includes(ext)) return 'badge-pdf';
+      if (['doc', 'docx', 'txt', 'rtf'].includes(ext)) return 'badge-doc';
+      if (['jpg', 'jpeg', 'png', 'svg', 'gif', 'webp'].includes(ext)) return 'badge-img';
+      if (['py', 'js', 'html', 'css', 'json', 'cpp', 'java'].includes(ext)) return 'badge-code';
+      if (['zip', 'rar', 'tar', 'gz', '7z'].includes(ext)) return 'badge-zip';
+      return 'badge-other';
+    }
+
     function copyHash(hash) {
       navigator.clipboard.writeText(hash).then(() => {
-        showToast(`📋 Copied SHA-256: ${hash.substring(0, 14)}...`);
+        showToast(`📋 Copied SHA-256: ${hash.substring(0, 16)}...`);
+      });
+    }
+
+    function copyCliCommand() {
+      navigator.clipboard.writeText('python client.py 127.0.0.1').then(() => {
+        showToast('📋 Copied terminal command: python client.py 127.0.0.1');
+      });
+    }
+
+    function copyShareableLink() {
+      const url = `${window.location.origin}${window.location.pathname}#room=${encodeURIComponent(currentRoom)}`;
+      navigator.clipboard.writeText(url).then(() => {
+        showToast('🔗 Copied P2P Room Link! Open this on your mobile or another PC to share files live.');
       });
     }
 
     // =========================================================================
-    // 2. WEBRTC PEER-TO-PEER MESH ENGINE (Real-Time cross-device transfer)
+    // 2. WEBRTC P2P MESH ENGINE (Cross-Device Real-Time Streaming)
     // =========================================================================
     function getRoomFromUrl() {
       const hash = window.location.hash;
@@ -846,14 +907,7 @@
       return match ? decodeURIComponent(match[1]) : "vivek-mca";
     }
 
-    function copyShareableRoomLink() {
-      const url = `${window.location.origin}${window.location.pathname}#room=${encodeURIComponent(currentRoom)}`;
-      navigator.clipboard.writeText(url).then(() => {
-        showToast(`🔗 Copied P2P Invite Link! Open this on another computer or phone to share files live.`);
-      });
-    }
-
-    function changeRoom() {
+    function switchRoom() {
       const newRoom = document.getElementById('roomInput').value.trim();
       if (!newRoom) return;
       currentRoom = newRoom;
@@ -867,18 +921,16 @@
       document.getElementById('currentRoomTag').textContent = currentRoom;
       document.getElementById('roomInput').value = currentRoom;
 
-      // Close existing peer if any
       if (peer) {
         try { peer.destroy(); } catch (e) {}
       }
       activeConnections = [];
       updatePeersBadge();
 
-      // Generate a deterministic or randomized node ID
-      const myNodeId = `${currentRoom}-${Math.random().toString(36).substring(2, 7)}`;
+      const nodeId = `${currentRoom}-${Math.random().toString(36).substring(2, 7)}`;
 
       try {
-        peer = new Peer(myNodeId, {
+        peer = new Peer(nodeId, {
           debug: 1,
           config: {
             iceServers: [
@@ -889,45 +941,41 @@
         });
 
         peer.on('open', (id) => {
-          console.log('[P2P] My Node ID:', id);
-          document.getElementById('nodeStatusText').textContent = `P2P Active (${id.slice(-5)})`;
-          // Connect to the common room anchor or discovery
-          connectToRoomPeers();
+          document.getElementById('nodeStatusLabel').textContent = `Mesh Active (${id.slice(-5)})`;
+          connectToRoomHost();
         });
 
         peer.on('connection', (conn) => {
-          setupConnection(conn);
+          setupConn(conn);
         });
 
         peer.on('error', (err) => {
-          console.warn('[P2P] Peer event:', err);
+          console.warn('[P2P]', err);
         });
       } catch (err) {
         console.error('PeerJS init failed:', err);
       }
     }
 
-    function connectToRoomPeers() {
-      // Connect to the well-known room host ID
-      const hostPeerId = `${currentRoom}-host`;
-      if (peer.id !== hostPeerId) {
-        const conn = peer.connect(hostPeerId, { reliable: true });
-        setupConnection(conn);
+    function connectToRoomHost() {
+      const hostId = `${currentRoom}-host`;
+      if (peer.id !== hostId) {
+        const conn = peer.connect(hostId, { reliable: true });
+        setupConn(conn);
       }
     }
 
-    function setupConnection(conn) {
+    function setupConn(conn) {
       conn.on('open', () => {
-        console.log('[P2P] Connected to peer:', conn.peer);
         if (!activeConnections.some(c => c.peer === conn.peer)) {
           activeConnections.push(conn);
         }
         updatePeersBadge();
-        showToast(`🟢 Connected with peer: ${conn.peer.slice(-5)}`);
+        showToast(`🟢 Connected with peer node: ${conn.peer.slice(-5)}`);
 
-        // Sync files: send our file catalog to peer
+        // Send catalog to peer
         conn.send({
-          type: 'SYNC_CATALOG',
+          type: 'CATALOG_SYNC',
           files: localFiles.map(f => ({
             name: f.name,
             size: f.size,
@@ -942,13 +990,12 @@
       conn.on('data', async (msg) => {
         if (!msg) return;
 
-        if (msg.type === 'NEW_FILE') {
-          // Received a new file streamed from peer
-          showToast(`⚡ Receiving '${msg.name}' from peer...`);
+        if (msg.type === 'P2P_FILE_TRANSFER') {
+          showToast(`⚡ Streaming '${msg.name}' from peer...`);
           const arrayBuffer = msg.buffer;
           const hash = await calculateSHA256(arrayBuffer);
 
-          const fileRecord = {
+          const record = {
             name: msg.name,
             size: msg.size,
             size_formatted: formatBytes(msg.size),
@@ -958,14 +1005,13 @@
             blob: new Blob([arrayBuffer], { type: msg.mimeType || 'application/octet-stream' })
           };
 
-          await dbSaveFile(fileRecord);
-          await refreshFilesList();
-          showToast(`✅ Bit-for-bit verified '${msg.name}' via SHA-256!`);
-        }
-        else if (msg.type === 'DELETE_FILE') {
-          await dbDeleteFile(msg.name);
-          await refreshFilesList();
-          showToast(`🗑️ Peer deleted file: '${msg.name}'`);
+          await dbSave(record);
+          await refreshVault();
+          showToast(`✅ Bit-for-bit SHA-256 verified '${msg.name}'!`);
+        } else if (msg.type === 'P2P_FILE_DELETE') {
+          await dbDelete(msg.name);
+          await refreshVault();
+          showToast(`🗑️ Peer removed file: '${msg.name}'`);
         }
       });
 
@@ -978,48 +1024,46 @@
     function updatePeersBadge() {
       const badge = document.getElementById('peersCountBadge');
       if (activeConnections.length > 0) {
-        badge.textContent = `🟢 ${activeConnections.length} Peer(s) Connected in Real Time`;
+        badge.textContent = `🟢 ${activeConnections.length} Active Peer Node(s) in Mesh`;
         badge.style.color = 'var(--accent-emerald)';
       } else {
-        badge.textContent = `🟡 Waiting for peer (Share Room link to test live)`;
+        badge.textContent = `🟡 Room Listening (Open link on another device to test live)`;
         badge.style.color = 'var(--accent-amber)';
       }
     }
 
-    function broadcastToPeers(message) {
+    function broadcast(message) {
       activeConnections.forEach(conn => {
         try {
           if (conn.open) conn.send(message);
-        } catch (e) {
-          console.error('[P2P] Broadcast error:', e);
-        }
+        } catch (e) {}
       });
     }
 
     // =========================================================================
-    // 3. FILE OPERATIONS (Upload, Download, Delete, Search)
+    // 3. REPOSITORY VAULT LOGIC
     // =========================================================================
-    async function refreshFilesList() {
-      localFiles = await dbGetAllFiles();
-      renderFiles(localFiles);
-      updateMetrics();
+    async function refreshVault() {
+      localFiles = await dbGetAll();
+      renderVaultTable(localFiles);
+      updateVaultMetrics();
     }
 
-    function updateMetrics() {
+    function updateVaultMetrics() {
       const totalBytes = localFiles.reduce((acc, f) => acc + (f.size || 0), 0);
       document.getElementById('metricFileCount').textContent = localFiles.length;
       document.getElementById('metricTotalSize').textContent = formatBytes(totalBytes);
     }
 
-    function renderFiles(files) {
+    function renderVaultTable(files) {
       const tbody = document.getElementById('filesTableBody');
       if (!files || files.length === 0) {
         tbody.innerHTML = `
           <tr>
             <td colspan="5" class="empty-state">
-              <div style="font-size: 32px; margin-bottom: 8px;">📂</div>
+              <div style="font-size: 36px; margin-bottom: 8px;">📂</div>
               <strong>No files shared yet in this node</strong>
-              <p>Drag and drop a file above or click "Select Files" to test live in real time!</p>
+              <p>Drag and drop a file above or click Browse Files to test live in real time!</p>
             </td>
           </tr>`;
         return;
@@ -1028,24 +1072,24 @@
       tbody.innerHTML = files.map(f => `
         <tr>
           <td>
-            <div class="file-name-cell">
-              <span class="file-badge">${f.ext || 'FILE'}</span>
+            <div class="file-cell">
+              <span class="ext-badge ${getExtBadgeClass(f.ext)}">${f.ext || 'FILE'}</span>
               <span>${f.name}</span>
             </div>
           </td>
           <td><strong>${f.size_formatted}</strong></td>
           <td>
-            <span class="hash-badge" onclick="copyHash('${f.sha256}')" title="Click to copy SHA-256">
+            <span class="sha-pill" onclick="copyHash('${f.sha256}')" title="Click to copy full SHA-256">
               ${f.sha256.substring(0, 12)}... 📋
             </span>
           </td>
           <td style="color: var(--text-dim);">${f.modified}</td>
           <td>
-            <div class="actions-cell">
-              <button class="btn-action btn-dl" onclick="downloadFile('${encodeURIComponent(f.name)}')">
+            <div style="display: flex; gap: 8px;">
+              <button class="btn-table-action btn-dl-act" onclick="downloadVaultFile('${encodeURIComponent(f.name)}')">
                 ⬇ Download
               </button>
-              <button class="btn-action btn-del" onclick="deleteFile('${encodeURIComponent(f.name)}')">
+              <button class="btn-table-action btn-del-act" onclick="deleteVaultFile('${encodeURIComponent(f.name)}')">
                 ✕ Delete
               </button>
             </div>
@@ -1056,48 +1100,48 @@
 
     function filterFiles() {
       const q = document.getElementById('searchInput').value.toLowerCase();
-      const filtered = localFiles.filter(f => f.name.toLowerCase().includes(q));
-      renderFiles(filtered);
+      const filtered = localFiles.filter(f => f.name.toLowerCase().includes(q) || (f.ext && f.ext.toLowerCase().includes(q)));
+      renderVaultTable(filtered);
     }
 
-    async function downloadFile(encodedName) {
+    async function downloadVaultFile(encodedName) {
       const name = decodeURIComponent(encodedName);
-      const fileRecord = localFiles.find(f => f.name === name);
-      if (!fileRecord || !fileRecord.blob) {
-        showToast(`[!] File data not found locally.`);
+      const record = localFiles.find(f => f.name === name);
+      if (!record || !record.blob) {
+        showToast('[!] File buffer not found locally.');
         return;
       }
 
-      // Verify SHA-256 on download
-      const arrayBuffer = await fileRecord.blob.arrayBuffer();
-      const verifyHash = await calculateSHA256(arrayBuffer);
+      // Checksum verification on download
+      const arrayBuffer = await record.blob.arrayBuffer();
+      const hash = await calculateSHA256(arrayBuffer);
 
-      if (verifyHash === fileRecord.sha256) {
-        const url = URL.createObjectURL(fileRecord.blob);
+      if (hash === record.sha256) {
+        const url = URL.createObjectURL(record.blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = fileRecord.name;
+        a.download = record.name;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
         showToast(`✅ Bit-for-bit SHA-256 verified! Download started.`);
       } else {
-        alert("Integrity Error: File checksum failed verification!");
+        alert("Integrity Failure: Checksum did not match expected SHA-256!");
       }
     }
 
-    async function deleteFile(encodedName) {
+    async function deleteVaultFile(encodedName) {
       const name = decodeURIComponent(encodedName);
       if (!confirm(`Are you sure you want to delete '${name}'?`)) return;
 
-      await dbDeleteFile(name);
-      broadcastToPeers({ type: 'DELETE_FILE', name });
-      await refreshFilesList();
+      await dbDelete(name);
+      broadcast({ type: 'P2P_FILE_DELETE', name });
+      await refreshVault();
       showToast(`🗑️ File '${name}' deleted.`);
     }
 
-    // Drag and Drop
+    // Drag & Drop
     const dropZone = document.getElementById('dropZone');
 
     ['dragenter', 'dragover'].forEach(name => {
@@ -1118,39 +1162,37 @@
 
     dropZone.addEventListener('drop', (e) => {
       const dt = e.dataTransfer;
-      if (dt.files.length > 0) processUploadFiles(dt.files);
+      if (dt.files.length > 0) processFiles(dt.files);
     });
 
     function handleFileSelect(e) {
-      if (e.target.files.length > 0) processUploadFiles(e.target.files);
+      if (e.target.files.length > 0) processFiles(e.target.files);
     }
 
-    async function processUploadFiles(fileList) {
-      const pBox = document.getElementById('progressBox');
-      const pName = document.getElementById('progressFilename');
-      const pPercent = document.getElementById('progressPercent');
-      const pBar = document.getElementById('progressBar');
+    async function processFiles(fileList) {
+      const tBox = document.getElementById('transferBox');
+      const tName = document.getElementById('transferFilename');
+      const tPercent = document.getElementById('transferPercent');
+      const tProg = document.getElementById('transferProgress');
 
-      pBox.style.display = 'block';
+      tBox.style.display = 'block';
 
       for (let i = 0; i < fileList.length; i++) {
         const file = fileList[i];
-        pName.textContent = `Processing: ${file.name} (${i + 1}/${fileList.length})`;
-        pPercent.textContent = '20%';
-        pBar.style.width = '20%';
+        tName.textContent = `Streaming: ${file.name} (${i + 1}/${fileList.length})`;
+        tPercent.textContent = '20%';
+        tProg.style.width = '20%';
 
-        // Read file ArrayBuffer
         const arrayBuffer = await file.arrayBuffer();
-        pPercent.textContent = '60%';
-        pBar.style.width = '60%';
+        tPercent.textContent = '60%';
+        tProg.style.width = '60%';
 
-        // Compute SHA-256 in real time
         const hash = await calculateSHA256(arrayBuffer);
-        pPercent.textContent = '90%';
-        pBar.style.width = '90%';
+        tPercent.textContent = '90%';
+        tProg.style.width = '90%';
 
         const ext = file.name.split('.').pop().toUpperCase() || 'FILE';
-        const fileRecord = {
+        const record = {
           name: file.name,
           size: file.size,
           size_formatted: formatBytes(file.size),
@@ -1161,41 +1203,38 @@
           blob: new Blob([arrayBuffer], { type: file.type || 'application/octet-stream' })
         };
 
-        // Save to IndexedDB
-        await dbSaveFile(fileRecord);
+        await dbSave(record);
 
-        // Stream file directly to all connected WebRTC peers in real time
-        broadcastToPeers({
-          type: 'NEW_FILE',
+        // Stream binary chunk across all active WebRTC peers in real time
+        broadcast({
+          type: 'P2P_FILE_TRANSFER',
           name: file.name,
           size: file.size,
           ext: ext,
           mimeType: file.type,
-          modified: fileRecord.modified,
+          modified: record.modified,
           buffer: arrayBuffer
         });
 
-        pPercent.textContent = '100%';
-        pBar.style.width = '100%';
+        tPercent.textContent = '100%';
+        tProg.style.width = '100%';
       }
 
-      showToast(`✅ Successfully uploaded and hashed ${fileList.length} file(s)!`);
-      setTimeout(() => { pBox.style.display = 'none'; }, 1200);
-      await refreshFilesList();
+      showToast(`✅ Successfully processed and hashed ${fileList.length} file(s)!`);
+      setTimeout(() => { tBox.style.display = 'none'; }, 1200);
+      await refreshVault();
     }
 
-    // =========================================================================
-    // 4. CROSS-TAB BROADCAST CHANNEL (Syncs multiple tabs on same browser)
-    // =========================================================================
+    // Cross-tab synchronization
     try {
-      const bc = new BroadcastChannel('dc_sync_channel');
-      bc.onmessage = () => { refreshFilesList(); };
+      const bc = new BroadcastChannel('aeroshare_sync');
+      bc.onmessage = () => { refreshVault(); };
     } catch (e) {}
 
-    // Initialize on Page Load
+    // Boot
     window.addEventListener('DOMContentLoaded', async () => {
       await initDB();
-      await refreshFilesList();
+      await refreshVault();
       initP2P();
     });
   </script>
