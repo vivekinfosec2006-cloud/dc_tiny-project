@@ -69,7 +69,6 @@ d:\dc_project\
 ├── server.py              # Dual-Mode Server: TCP Sockets (:8888) + HTTP (:5000) (Pure Python)
 ├── client.py              # Interactive CLI Socket Client with SHA-256 Verification (Pure Python)
 ├── index.html             # Enterprise Web Dashboard (WebRTC + MQTT P2P Mesh + IndexedDB)
-├── PRESENTATION_SLIDES.md # 18-Slide Comprehensive Presentation Deck & Viva Script
 ├── README.md              # Master Academic Project Documentation & SRS Report
 ├── storage/               # Server-side repository directory (auto-created)
 └── downloads/             # Client-side download destination directory (auto-created)
